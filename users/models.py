@@ -26,7 +26,7 @@ class UserProfile(models.Model):
     email = models.EmailField(max_length=254, blank=True)
     phone = models.CharField(max_length=10, blank=True)
     mobile = models.CharField(max_length=10, blank=True)
-    state = models.ForeignKey('States', on_delete=models.SET_NULL, blank=True, null=True)
+    state = models.ForeignKey('States', on_delete=models.CASCADE, blank=False, null=False)
     city = models.ForeignKey('Cities', on_delete=models.SET_NULL, blank=True, null=True) 
     hobbies = MultiSelectField(max_length=200, choices=[
         ('hockey', 'Hockey'),

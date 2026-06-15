@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UserProfile
+from .models import UserProfile, States
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from datetime import date
@@ -17,7 +17,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def validate_name(self, value):
         return value
 
-    def validate(self, data):
+    def validate(self, data ):
         error = {}
         
         name = data.get('name', '').strip()
@@ -34,13 +34,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if not phone and not mobile:
             error['contact'] = 'At least one contact number (phone or mobile) must be provided.'
         else:
-            if phone and len(phone) != 10:
-                error['phone'] = 'Phone number must be 10 digits long.'
-            if mobile and len(mobile) != 10:
-                error['mobile'] = 'Mobile number must be 10 digits long.'
-        if mobile and UserProfile.objects.filter(Q(mobile=mobile) | Q(phone=mobile)).exists():
+            if phone:
+                if not phone.isdigit():
+                    error['phone'] = 'Phone number must contain only digits.'
+                elif len(phone) != 10:
+                    error['phone'] = 'Phone number must be 10 digits long.'
+            if mobile:
+                if not mobile.isdigit():
+                    error['mobile'] = 'Mobile number must contain only digits.'
+                elif len(mobile) != 10:
+                    error['mobile'] = 'Mobile number must be 10 digits long.'
+
+        existing = UserProfile.objects
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if mobile and existing.filter(Q(mobile=mobile) | Q(phone=mobile)).exists():
             error['mobile'] = 'This mobile number is already registered.'
-        if phone and UserProfile.objects.filter(Q(phone=phone) | Q(mobile=phone)).exists():
+        if phone and existing.filter(Q(phone=phone) | Q(mobile=phone)).exists():
             error['phone'] = 'This phone number is already registered.'
 
         #name validation
@@ -80,3 +90,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         else: 
             return data
         
+class StateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = States
+        fields = ['id', 'name']
+
+

@@ -31,7 +31,7 @@ load_dotenv()
 SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*',]
 
 
 
@@ -46,13 +46,28 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users',
     'multiselectfield',
-        'rest_framework',
-        'django_filters',
+    'rest_framework',
+    'django_filters',
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
+    'corsheaders',
 ]
 REST_FRAMEWORK = {
     'DATE_INPUT_FORMATS': [
-        '%d/%m/%Y',      # Custom: 20/07/2026
-    ],
+        '%d/%m/%Y',  
+        ],
+        'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
+        
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Your API',
+    'DESCRIPTION': 'Backend for the Android frontend',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
 }
 
 MIDDLEWARE = [
@@ -63,6 +78,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        'corsheaders.middleware.CorsMiddleware',  # near the top
+
 ]
 
 ROOT_URLCONF = 'machine_test.urls'
@@ -70,7 +87,7 @@ ROOT_URLCONF = 'machine_test.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'static' / 'frontend'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -131,3 +148,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static' / 'frontend' / 'assets']
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

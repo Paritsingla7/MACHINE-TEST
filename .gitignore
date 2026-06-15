@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.sqlite3
+staticfiles/
+media/
+profile_photos/
+.env
+*.env
+schema.yml
+.DS_Store
