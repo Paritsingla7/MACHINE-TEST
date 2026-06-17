@@ -2,46 +2,35 @@
 
 Base URL: `http://<your-server>/api`
 
-All responses are JSON. All request bodies should be sent as `multipart/form-data`.
+All responses are JSON. Registration requests must be sent as `multipart/form-data`.
 
 ---
 
-## Endpoints Overview
+## Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/states/` | List all states |
 | GET | `/api/cities/` | List cities for a state |
-| POST | `/api/register/` | Register a new user profile |
-| GET | `/api/users/` | List users with filters and pagination |
-
----
-
-## Integration Flow (Android)
-
-```
-1. GET /api/states/               → populate state dropdown on form load
-2. GET /api/cities/?state_id=<id> → on state selection, populate city dropdown
-3. POST /api/register/            → submit registration form
-4. GET /api/users/                → display user list (with optional filters)
-```
+| POST | `/api/register/` | Create a new user profile |
+| GET | `/api/users/` | List users with filtering and pagination |
 
 ---
 
 ## Error Response Format
 
-All validation errors follow this structure — always an `errors` object with field names as keys:
+All validation errors return HTTP `400` with this structure:
 
 ```json
 {
   "errors": {
-    "field_name": "Error message here.",
+    "field_name": "Error message.",
     "another_field": "Another error message."
   }
 }
 ```
 
-Parse `errors` as a map and display each message next to its corresponding field.
+Only fields that failed validation appear in `errors`. Keys are field names except for `contact`, which is used when neither `phone` nor `mobile` is provided.
 
 ---
 
@@ -49,9 +38,7 @@ Parse `errors` as a map and display each message next to its corresponding field
 
 `GET /api/states/`
 
-Returns all states. Call on form load to populate the state dropdown.
-
-**No parameters.**
+Returns all states. No parameters.
 
 **Response `200 OK`:**
 ```json
@@ -67,7 +54,7 @@ Returns all states. Call on form load to populate the state dropdown.
 
 `GET /api/cities/`
 
-Returns cities for a given state. Call when the user selects a state.
+Returns cities belonging to a given state.
 
 **Query parameters:**
 
@@ -103,26 +90,27 @@ Creates a new user profile.
 
 ### Request Fields
 
-| Field | Type | Required | Validation Rules |
+| Field | Type | Required | Notes |
 |---|---|---|---|
-| `name` | string | Yes | Max 25 characters. Cannot be empty. |
-| `gender` | string | Yes | `M` or `F` only |
-| `birth_date` | string | Yes | Format: `DD/MM/YYYY`. Cannot be a future date. |
-| `state` | integer | Yes | ID from `/api/states/` |
-| `phone` | string | Conditional | Exactly 10 digits. At least one of `phone` or `mobile` must be provided. Must be unique across all users. |
-| `mobile` | string | Conditional | Exactly 10 digits. At least one of `phone` or `mobile` must be provided. Must be unique across all users. |
-| `email` | string | No | Must be a valid email format if provided |
-| `city` | integer | No | ID from `/api/cities/`. Must belong to the selected `state`. |
-| `hobbies` | string (repeatable) | No | Send as multiple values. Accepted: `hockey`, `chess`, `football`, `cricket` |
+| `name` | string | Yes | Max 25 characters |
+| `gender` | string | Yes | `M` or `F` |
+| `birth_date` | string | Yes | Format: `DD/MM/YYYY`. Cannot be a future date |
+| `state_id` | integer | Yes | ID from `GET /api/states/` |
+| `phone` | string | Conditional | Exactly 10 digits. At least one of `phone` or `mobile` required. Unique across all users (cross-checked against `mobile` too) |
+| `mobile` | string | Conditional | Exactly 10 digits. At least one of `phone` or `mobile` required. Unique across all users (cross-checked against `phone` too) |
+| `email` | string | No | Must be valid email format if provided |
+| `city_id` | integer | No | ID from `GET /api/cities/`. Must belong to the selected state |
+| `hobbies_ids` | string (repeatable) | No | Send as repeated field. Values are hobby names (e.g. `cricket`, `chess`) |
 | `photo` | file | No | JPG or PNG only |
 
 **Hobbies example (multipart):**
 ```
-hobbies=cricket
-hobbies=chess
+hobbies_ids=cricket
+hobbies_ids=chess
 ```
 
 ### Response `201 Created`
+
 ```json
 {
   "id": 5,
@@ -132,14 +120,21 @@ hobbies=chess
   "email": "jane@example.com",
   "phone": "9876543210",
   "mobile": "",
-  "state": 1,
-  "city": 2,
-  "hobbies": ["chess", "cricket"],
-  "photo": "http://<server>/media/profile_photos/jane.jpg"
+  "state": "Maharashtra",
+  "city": "Pune",
+  "hobbies": [
+    { "id": 3, "name": "chess" },
+    { "id": 4, "name": "cricket" }
+  ],
+  "photo": "http://<server>/media/profile_photos/jane.jpg",
+  "created_at": "2024-06-15T10:30:00Z"
 }
 ```
 
+> `city` is `null` if not provided. `photo` is `null` if not uploaded. `state` and `city` are returned as name strings, not IDs.
+
 ### Response `400 Bad Request`
+
 ```json
 {
   "errors": {
@@ -151,12 +146,11 @@ hobbies=chess
     "mobile": "This mobile number is already registered.",
     "state": "State must be selected.",
     "city": "City must belong to the selected state.",
+    "email": "Invalid email format.",
     "photo": "Photo must be in JPG or PNG format."
   }
 }
 ```
-
-> Only fields that failed validation are included in the `errors` object. A successful registration will never return `errors`.
 
 ---
 
@@ -164,7 +158,7 @@ hobbies=chess
 
 `GET /api/users/`
 
-Returns a paginated list of registered users. Supports filtering by name, state, and gender.
+Returns a paginated list of user profiles. Supports filtering.
 
 **Query parameters:**
 
@@ -190,51 +184,29 @@ Returns a paginated list of registered users. Supports filtering by name, state,
       "email": "john@example.com",
       "phone": "9876543210",
       "mobile": "",
-      "state": 3,
-      "city": 12,
-      "hobbies": ["cricket", "chess"],
-      "photo": "http://<server>/media/profile_photos/john.jpg"
+      "state": "Maharashtra",
+      "city": "Mumbai",
+      "hobbies": [
+        { "id": 1, "name": "cricket" },
+        { "id": 2, "name": "chess" }
+      ],
+      "photo": "http://<server>/media/profile_photos/john.jpg",
+      "created_at": "2024-06-15T10:30:00Z"
     }
   ]
 }
 ```
 
-> `next` and `previous` are `null` when there is no next/previous page.  
-> `photo` is `null` if no photo was uploaded.
-
----
-
-## Validation Rules Reference
-
-| Field | Rule |
-|---|---|
-| `name` | Required. Max 25 characters. |
-| `gender` | Required. `M` or `F` only. |
-| `birth_date` | Required. `DD/MM/YYYY` format. Cannot be in the future. |
-| `state` | Required. Must be a valid state ID. |
-| `phone` | Optional individually but at least one of `phone`/`mobile` is required. Digits only. Exactly 10 digits. Unique across all users. |
-| `mobile` | Optional individually but at least one of `phone`/`mobile` is required. Digits only. Exactly 10 digits. Unique across all users. |
-| `email` | Optional. Standard email format if provided. |
-| `city` | Optional. Must belong to the selected state if provided. |
-| `hobbies` | Optional. Any combination of `hockey`, `chess`, `football`, `cricket`. |
-| `photo` | Optional. JPG or PNG only. |
+> `next` and `previous` are `null` when there is no adjacent page. `photo` is `null` if no photo was uploaded. `state` and `city` are name strings, not IDs. `hobbies` is an array of `{ "id", "name" }` objects.
 
 ---
 
 ## Notes
 
 - **Date format:** All dates — both sent and received — use `DD/MM/YYYY`.
-- **Phone/mobile uniqueness:** A number already used as `phone` by one user cannot be used as `mobile` by another, and vice versa. The uniqueness check is cross-field.
-- **Photo URL:** The `photo` field in responses is an absolute URL. Use it directly to display the image.
-- **Pagination:** Default page size is 10. Use `?page=N` to navigate.
-- **Empty fields:** Optional string fields not provided will be returned as `""`. Optional FK fields not provided will be returned as `null`.
-
----
-
-## Interactive Testing (Internal)
-
-| Tool | URL |
-|---|---|
-| Swagger UI | `GET /api/docs/` |
-| ReDoc | `GET /api/redoc/` |
-| Raw OpenAPI schema | `GET /api/schema/` |
+- **Write vs read field names:** Registration accepts `state_id` and `city_id` (IDs). Responses return `state` and `city` as name strings.
+- **Phone/mobile uniqueness:** A number already stored as `phone` for one user cannot be used as `mobile` for another, and vice versa.
+- **Hobbies on write:** Send as repeated `hobbies_ids` fields using the hobby name as the value.
+- **Hobbies on read:** Returned as an array of objects `[{ "id": 1, "name": "cricket" }]`.
+- **Photo URL:** The `photo` field in responses is an absolute URL.
+- **Optional string fields:** Not provided will be returned as `""`. Optional FK fields not provided will be returned as `null`.

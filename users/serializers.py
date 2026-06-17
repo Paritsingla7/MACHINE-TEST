@@ -1,19 +1,68 @@
 from rest_framework import serializers
-from .models import UserProfile, States
+from .models import Cities, Hobbies, UserProfile, States
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from datetime import date
 from django.db.models import Q
 
+class StateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = States
+        fields = ['id', 'name']
+
+class HobbySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hobbies
+        fields = ['id', 'name']
+
 class UserProfileSerializer(serializers.ModelSerializer):
     
     name = serializers.CharField()
 
+    # READ: returns name strings
+    state = serializers.StringRelatedField(read_only=True)
+    city = serializers.StringRelatedField(read_only=True)
+    hobbies = HobbySerializer(many=True, read_only=True)
+    
+    # WRITE: accepts IDs
+    state_id = serializers.PrimaryKeyRelatedField(
+        queryset=States.objects.all(), source='state', write_only=True
+    )
+    city_id = serializers.PrimaryKeyRelatedField(
+        queryset=Cities.objects.all(), source='city', 
+        write_only=True, required=False, allow_null=True
+    )
+    hobbies_ids = serializers.SlugRelatedField(
+        queryset=Hobbies.objects.all(), source='hobbies',
+        slug_field='name', many=True, write_only=True, required=False
+    )
+
     class Meta:
         
         model = UserProfile
-        fields = ['name', 'mobile', 'phone', 'photo', 'gender', 'state', 'city', 'email', 'birth_date']
+        fields = ['id', 'name', 'mobile', 'phone', 'photo', 'gender',
+                  'state', 'city', 'hobbies',           # read
+                  'state_id', 'city_id', 'hobbies_ids', # write
+                  'email', 'birth_date', 'created_at']
 
+    def create(self, validated_data):
+        hobbies = validated_data.pop('hobbies', [])
+        instance = UserProfile.objects.create(**validated_data)
+        instance.hobbies.set(hobbies)
+        return instance
+
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        representation = super().to_representation(instance)
+        
+        if request:
+            fields = request.query_params.get('fields')
+            if fields:
+                allowed = [f.strip() for f in fields.split(',')]
+                return {k: v for k, v in representation.items() if k in allowed}
+        
+        return representation
+    
     def validate_name(self, value):
         return value
 
@@ -29,6 +78,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         city = data.get('city')
         email = data.get('email')
         birth_date = data.get('birth_date')
+        hobbies = data.get('hobbies')
 
         #mobile/phone validation
         if not phone and not mobile:
@@ -85,14 +135,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if birth_date and birth_date > date.today():
             error['birth_date'] = 'Birth date cannot be in the future.'
 
-        if error :
+        if error:
             raise serializers.ValidationError(error)
         else: 
             return data
         
-class StateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = States
-        fields = ['id', 'name']
-
 

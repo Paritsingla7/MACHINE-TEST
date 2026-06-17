@@ -404,13 +404,13 @@ document.getElementById('registerForm').addEventListener('submit', async functio
   if (gender) fd.append('gender', gender.value);
 
   const state = form.state.value;
-  if (state) fd.append('state', state);
+  if (state) fd.append('state_id', state);
 
   const city = form.city.value;
-  if (city) fd.append('city', city);
+  if (city) fd.append('city_id', city);
 
-  form.querySelectorAll('input[name="hobbies"]:checked').forEach(cb => {
-    fd.append('hobbies', cb.value);
+  form.querySelectorAll('input[name="hobbies_ids"]:checked').forEach(cb => {
+    fd.append('hobbies_ids', cb.value);
   });
 
   const photoFile = form.photo.files[0];

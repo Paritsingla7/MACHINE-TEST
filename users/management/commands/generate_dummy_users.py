@@ -1,10 +1,13 @@
+import os
 import random
 import string
+import time
 from datetime import date, timedelta
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from users.models import UserProfile, States, Cities
+from users.models import Cities, Hobbies, States, UserProfile
 
 
 FIRST_NAMES_M = [
@@ -28,8 +31,6 @@ LAST_NAMES = [
     'Shah', 'Jain', 'Agarwal', 'Bansal', 'Saxena', 'Srivastava', 'Trivedi',
 ]
 
-HOBBIES = ['hockey', 'chess', 'football', 'cricket']
-
 DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'rediffmail.com']
 
 
@@ -43,10 +44,21 @@ def random_phone(existing):
 
 
 def random_dob():
-    today = date.today()
-    days_in_range = (60 - 18) * 365
     offset = random.randint(18 * 365, 60 * 365)
-    return today - timedelta(days=offset)
+    return date.today() - timedelta(days=offset)
+
+
+def get_photo_paths():
+    """Return list of relative paths (relative to MEDIA_ROOT) for existing profile photos."""
+    photo_dir = os.path.join(settings.MEDIA_ROOT, 'profile_photos')
+    if not os.path.isdir(photo_dir):
+        return []
+    valid_exts = {'.jpg', '.jpeg', '.png'}
+    paths = []
+    for fname in os.listdir(photo_dir):
+        if os.path.splitext(fname)[1].lower() in valid_exts:
+            paths.append(os.path.join('profile_photos', fname))
+    return paths
 
 
 class Command(BaseCommand):
@@ -57,34 +69,50 @@ class Command(BaseCommand):
             '--count', type=int, default=20,
             help='Number of dummy users to create (default: 20)',
         )
+        parser.add_argument(
+            '--delay', type=float, default=0,
+            help='Seconds to wait between each user creation (default: 0)',
+        )
+        parser.add_argument(
+            '--states', type=int, nargs='+', metavar='ID',
+            help='Restrict to specific state IDs (e.g. --states 4 5 6). Defaults to all states.',
+        )
 
     def handle(self, *args, **options):
         count = options['count']
+        delay = options['delay']
+        state_ids = options.get('states')
 
-        states = list(States.objects.prefetch_related('cities_set').all())
-        if not states:
-            raise CommandError(
-                'No states found in the database. '
-                'Please populate the States and Cities tables first.'
-            )
-
-        # Build state → cities map, skip states with no cities
+        # Load states → cities, optionally restricted to given IDs
+        qs = States.objects.filter(id__in=state_ids) if state_ids else States.objects.all()
         state_city_map = {}
-        for state in states:
+        for state in qs:
             cities = list(Cities.objects.filter(state=state))
             if cities:
                 state_city_map[state] = cities
 
         if not state_city_map:
-            raise CommandError('No cities found. Populate Cities before generating users.')
+            raise CommandError('No states/cities found. Populate them first.')
 
-        # Collect existing phone/mobile numbers to avoid duplicates
+        # Load all hobby objects from DB
+        all_hobbies = list(Hobbies.objects.all())
+        if not all_hobbies:
+            raise CommandError('No hobbies found. Run the shell command to populate Hobbies first.')
+
+        # Collect existing numbers to avoid duplicates
         existing_numbers = set(
             UserProfile.objects.values_list('phone', flat=True)
         ) | set(
             UserProfile.objects.values_list('mobile', flat=True)
         )
         existing_numbers.discard('')
+
+        # Collect available photos from media folder
+        photo_paths = get_photo_paths()
+        if photo_paths:
+            self.stdout.write(f'Found {len(photo_paths)} photos in media folder.')
+        else:
+            self.stdout.write(self.style.WARNING('No photos found in media/profile_photos/ — users will have no photo.'))
 
         created = 0
         skipped = 0
@@ -93,23 +121,18 @@ class Command(BaseCommand):
             gender = random.choice(['M', 'F'])
             first = random.choice(FIRST_NAMES_M if gender == 'M' else FIRST_NAMES_F)
             last = random.choice(LAST_NAMES)
-            name = f'{first} {last}'
-            if len(name) > 25:
-                name = name[:25]
+            name = f'{first} {last}'[:25]
 
             dob = random_dob()
 
-            # ~70% chance of having an email
             email = ''
             if random.random() < 0.7:
-                email = f'{first.lower()}.{last.lower()}{random.randint(1, 999)}@{random.choice(DOMAINS)}'
-                if len(email) > 254:
-                    email = ''
+                candidate = f'{first.lower()}.{last.lower()}{random.randint(1, 999)}@{random.choice(DOMAINS)}'
+                if len(candidate) <= 254:
+                    email = candidate
 
-            # Randomly assign phone, mobile, or both
             contact_choice = random.choice(['phone', 'mobile', 'both'])
-            phone = ''
-            mobile = ''
+            phone = mobile = ''
             try:
                 if contact_choice in ('phone', 'both'):
                     phone = random_phone(existing_numbers)
@@ -123,10 +146,16 @@ class Command(BaseCommand):
             state = random.choice(list(state_city_map.keys()))
             city = random.choice(state_city_map[state])
 
-            hobbies = random.sample(HOBBIES, k=random.randint(0, len(HOBBIES)))
+            # Random subset of hobbies (0 to all)
+            hobbies = random.sample(all_hobbies, k=random.randint(0, len(all_hobbies)))
+
+            # ~80% of users get a photo
+            photo_path = ''
+            if photo_paths and random.random() < 0.8:
+                photo_path = random.choice(photo_paths)
 
             try:
-                UserProfile.objects.create(
+                user = UserProfile.objects.create(
                     name=name,
                     gender=gender,
                     birth_date=dob,
@@ -135,11 +164,15 @@ class Command(BaseCommand):
                     mobile=mobile,
                     state=state,
                     city=city,
-                    hobbies=hobbies,
+                    photo=photo_path,
                 )
+                user.hobbies.set(hobbies)
                 created += 1
+                self.stdout.write(f'  [{created}/{count}] {name}')
+                if delay:
+                    time.sleep(delay)
             except Exception as e:
-                self.stderr.write(f'Row {i+1} skipped: {e}')
+                self.stderr.write(f'Row {i + 1} skipped: {e}')
                 skipped += 1
 
         self.stdout.write(self.style.SUCCESS(
