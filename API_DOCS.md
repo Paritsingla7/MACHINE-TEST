@@ -158,19 +158,45 @@ hobbies_ids=chess
 
 `GET /api/users/`
 
-Returns a paginated list of user profiles. Supports filtering.
+Returns a paginated, filterable, sortable list of user profiles. Supports sparse fieldsets to limit response size.
 
-**Query parameters:**
+### Filtering
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | No | Case-insensitive partial match on name |
-| `state` | integer | No | Filter by state ID |
-| `gender` | string | No | `M` or `F` |
-| `ordering` | string | No | Field to sort by. Prefix with `-` for descending. Valid values: `name`, `gender`, `birth_date`, `email`, `mobile`, `phone`, `state`, `city`, `created_at`. Default: `-created_at`. E.g. `?ordering=state,-name` |
-| `page` | integer | No | Page number. Default: `1` |
-| `page_size` | integer | No | Results per page. Default: `10`. Max: `100` |
-| `fields` | string | No | Comma-separated list of fields to include in each result (sparse fieldset). E.g. `?fields=id,name,state,created_at` |
+| Parameter | Type    | Description                                      |
+|-----------|---------|--------------------------------------------------|
+| `name`    | string  | Case-insensitive partial match. E.g. `?name=raj` |
+| `state`   | integer | Filter by state ID. E.g. `?state=2`              |
+| `gender`  | string  | `M` or `F`                                       |
+
+### Sorting
+
+| Parameter  | Type   | Description                              |
+|------------|--------|------------------------------------------|
+| `ordering` | string | Field to sort by. Default: `-created_at` |
+
+Sortable fields: `name`, `gender`, `birth_date`, `email`, `mobile`, `phone`, `state`, `city`, `created_at`
+
+- Prefix with `-` for descending: `?ordering=-name`
+- Comma-separate for multi-field: `?ordering=state,-name`
+- Sorting on `name`, `email`, `state`, and `city` is **case-insensitive**
+- `state` and `city` sort by their display name, not their ID
+
+### Pagination
+
+| Parameter   | Type    | Description                                 |
+|-------------|---------|---------------------------------------------|
+| `page`      | integer | Page number. Default: `1`                   |
+| `page_size` | integer | Results per page. Default: `10`. Max: `100` |
+
+### Sparse Fieldsets
+
+| Parameter | Type   | Description                                            |
+|-----------|--------|--------------------------------------------------------|
+| `fields`  | string | Comma-separated field names to include in the response |
+
+Available field names: `id`, `name`, `gender`, `birth_date`, `email`, `phone`, `mobile`, `state`, `city`, `hobbies`, `photo`, `created_at`
+
+Always include `id` to keep results identifiable. Example: `?fields=id,name,state,created_at`
 
 **Response `200 OK`:**
 ```json

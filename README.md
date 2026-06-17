@@ -75,6 +75,25 @@ python manage.py runserver 0.0.0.0:8000
 
 ---
 
+## Features
+
+### Web Frontend (`/`)
+
+- **Filter** users by name (partial match), state, and gender
+- **Sort** any column by clicking its header — click again to reverse, third click resets to default (newest first)
+- **Column visibility** — toggle columns on/off via the Columns button; also trims the API response via sparse fieldsets automatically
+- **Page size** — choose 5 / 10 / 25 / 50 / 100 per page, or double-click the dropdown to type a custom number (1–100)
+- **Page jump** — type any page number directly into the Go to input in the pagination bar
+
+### API (`GET /api/users/`)
+
+- **Filtering** — by name (case-insensitive partial), state ID, gender
+- **Sorting** — any field, case-insensitive for text fields, multi-field with comma separation (`?ordering=state,-name`)
+- **Pagination** — configurable page size up to 100 (`?page_size=25`), explicit page number (`?page=3`)
+- **Sparse fieldsets** — request only the fields you need (`?fields=id,name,email,state`)
+
+---
+
 ## Web Pages
 
 | Page | URL |
