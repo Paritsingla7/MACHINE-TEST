@@ -51,13 +51,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'corsheaders',
+    'frontend',
 ]
 REST_FRAMEWORK = {
-    'DATE_INPUT_FORMATS': [
-        '%d/%m/%Y',  
-        ],
-        'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  
-        
+    'DATE_INPUT_FORMATS': ['%d/%m/%Y'],
+    'DATE_FORMAT': '%d/%m/%Y',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SPECTACULAR_SETTINGS = {
@@ -87,7 +86,7 @@ ROOT_URLCONF = 'machine_test.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'static' / 'frontend'],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -149,7 +148,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static' / 'frontend' / 'assets']
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'

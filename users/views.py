@@ -1,27 +1,26 @@
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView, csrf_exempt
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .serializers import UserProfileSerializer, StateSerializer
 from .models import UserProfile, Cities, States
 from .filters import UserProfileFilter
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 
+# @method_decorator(csrf_exempt,name='dispatch')
+@method_decorator(csrf_exempt, name='dispatch')
 class UserProfileView(APIView):
     @extend_schema(request=UserProfileSerializer, responses={201: UserProfileSerializer})
     def post(self, request):
         serializer = UserProfileSerializer(data=request.data)
-        try:
-             serializer.is_valid()
-             serializer.save()
-             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response(
-                {"errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not serializer.is_valid():
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class UserListView(APIView):
     @extend_schema(

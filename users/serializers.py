@@ -12,7 +12,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = UserProfile
-        fields = '__all__'
+        fields = ['name', 'mobile', 'phone', 'photo', 'gender', 'state', 'city', 'email', 'birth_date']
 
     def validate_name(self, value):
         return value

@@ -1,0 +1,153 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Profile</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_orange.css" />
+  <link rel="stylesheet" href="{% static 'frontend/css/base.css' %}?v={% now 'U' %}" />
+  <link rel="stylesheet" href="{% static 'frontend/css/register.css' %}?v={% now 'U' %}" />
+</head>
+<body>
+
+  <header>
+    <h1>User Registration</h1>
+  </header>
+
+  <div class="card">
+    <h2>Profile Details</h2>
+
+    <!-- All API/validation errors shown here at once -->
+    <div class="error-box" id="errorBox">
+      <ul id="errorList"></ul>
+    </div>
+
+    <form id="registerForm" novalidate>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Full Name <span class="req">*</span></label>
+          <input type="text" id="name" name="name" placeholder="e.g. John Doe" maxlength="25" />
+          <span class="field-error" id="err-name"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="birth_date">Date of Birth <span class="req">*</span></label>
+          <input type="text" id="birth_date" name="birth_date" placeholder="DD/MM/YYYY" maxlength="10" />
+          <span class="field-error" id="err-birth_date"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Gender <span class="req">*</span></label>
+        <div class="gender-group">
+          <div class="gender-option">
+            <input type="radio" id="genderM" name="gender" value="M" />
+            <label for="genderM">&#9794; Male</label>
+          </div>
+          <div class="gender-option">
+            <input type="radio" id="genderF" name="gender" value="F" />
+            <label for="genderF">&#9792; Female</label>
+          </div>
+        </div>
+        <span class="field-error" id="err-gender"></span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="john@example.com" />
+          <span class="field-error" id="err-email"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" name="phone" placeholder="10-digit number" maxlength="10" />
+          <span class="field-error" id="err-phone"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="mobile">Mobile</label>
+          <input type="text" id="mobile" name="mobile" placeholder="10-digit number" maxlength="10" />
+          <span class="field-error" id="err-mobile"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="state">State <span class="req">*</span></label>
+          <select id="state" name="state">
+            <option value="">Loading states…</option>
+          </select>
+          <span class="field-error" id="err-state"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="city">City</label>
+          <select id="city" name="city" disabled>
+            <option value="">Select a state first</option>
+          </select>
+          <span class="field-error" id="err-city"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Hobbies</label>
+        <div class="hobbies-grid">
+          <div class="hobby-option">
+            <input type="checkbox" id="hobby-hockey" name="hobbies" value="hockey" />
+            <label for="hobby-hockey">Hockey</label>
+          </div>
+          <div class="hobby-option">
+            <input type="checkbox" id="hobby-chess" name="hobbies" value="chess" />
+            <label for="hobby-chess">Chess</label>
+          </div>
+          <div class="hobby-option">
+            <input type="checkbox" id="hobby-football" name="hobbies" value="football" />
+            <label for="hobby-football">Football</label>
+          </div>
+          <div class="hobby-option">
+            <input type="checkbox" id="hobby-cricket" name="hobbies" value="cricket" />
+            <label for="hobby-cricket">Cricket</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group full">
+        <label>Profile Photo <span style="color:#4a4a6a;font-weight:400;text-transform:none;">(JPG or PNG)</span></label>
+        <div class="photo-upload" id="photoUploadArea">
+          <img class="photo-preview" id="photoPreview" src="" alt="Preview" />
+          <input type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png" />
+          <div class="upload-icon">&#128247;</div>
+          <div class="upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
+          <div class="upload-hint">JPG or PNG only</div>
+          <div class="file-name" id="fileName"></div>
+        </div>
+        <span class="field-error" id="err-photo"></span>
+      </div>
+
+      <!-- T&C — always visible, checked only after all validations pass -->
+      <div class="form-group">
+        <label>Terms &amp; Conditions <span class="req">*</span></label>
+        <label class="tnc-group" id="tncGroup">
+          <input type="checkbox" id="tnc" />
+          <span>I confirm that all the information provided is accurate and I agree to the <a href="#">Terms &amp; Conditions</a> and <a href="#">Privacy Policy</a>.</span>
+        </label>
+        <span class="field-error" id="err-tnc"></span>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="resetForm()">Clear</button>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Register</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="{% static 'frontend/js/register.js' %}?v={% now 'U' %}"></script>
+</body>
+</html>
