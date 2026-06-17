@@ -1,3 +1,4 @@
+from django.db.models.functions import Lower
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -5,8 +6,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter as _BaseOrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from .serializers import UserProfileSerializer, StateSerializer
 from .models import UserProfile, Cities, States
 from .filters import UserProfileFilter
@@ -14,19 +13,30 @@ from .filters import UserProfileFilter
 
 class OrderingFilter(_BaseOrderingFilter):
     _remap = {'state': 'state__name', 'city': 'city__name'}
+    _ci    = {'name', 'email', 'state__name', 'city__name'}
 
     def filter_queryset(self, request, queryset, view):
         ordering = self.get_ordering(request, queryset, view)
-        if ordering:
-            ordering = [
-                '-' + self._remap.get(f[1:], f[1:]) if f.startswith('-') else self._remap.get(f, f)
-                for f in ordering
-            ]
-            return queryset.order_by(*ordering)
-        return queryset
+        if not ordering:
+            return queryset
+        exprs = []
+        for f in ordering:
+            desc  = f.startswith('-')
+            field = self._remap.get(f[1:] if desc else f, f[1:] if desc else f)
+            if field in self._ci:
+                exprs.append(Lower(field).desc() if desc else Lower(field))
+            else:
+                exprs.append(('-' + field) if desc else field)
+        return queryset.order_by(*exprs)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+
+class _Paginator(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class UserProfileView(APIView):
     @extend_schema(
         tags=['Users'],
@@ -109,8 +119,7 @@ class UserListView(APIView):
         ordering_filter = OrderingFilter()
         queryset = ordering_filter.filter_queryset(request, filterset.qs, self)
 
-        paginator = PageNumberPagination()
-        paginator.page_size = 10
+        paginator = _Paginator()
         page = paginator.paginate_queryset(queryset, request)
 
         serializer = UserProfileSerializer(page, many=True, context={'request': request})

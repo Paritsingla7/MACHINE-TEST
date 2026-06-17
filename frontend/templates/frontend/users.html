@@ -41,6 +41,22 @@
         </select>
       </div>
 
+      <div class="filter-group filter-group--sm">
+        <label for="filterPageSize">Per page</label>
+        <select id="filterPageSize" onchange="setPageSize(this.value)">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+
+      <div class="col-toggle-wrap">
+        <label>Columns</label>
+        <button type="button" class="btn btn-outline col-toggle-btn" onclick="toggleColPanel()">Columns ▾</button>
+        <div class="col-panel" id="colPanel"></div>
+      </div>
+
       <div class="filter-actions">
         <button class="btn btn-primary" onclick="applyFilters()">Search</button>
         <button class="btn btn-outline" onclick="clearFilters()">Clear</button>

@@ -57,6 +57,7 @@ REST_FRAMEWORK = {
     'DATE_INPUT_FORMATS': ['%d/%m/%Y'],
     'DATE_FORMAT': '%d/%m/%Y',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
 }
 
 SPECTACULAR_SETTINGS = {
@@ -149,7 +150,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

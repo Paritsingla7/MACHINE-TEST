@@ -1,11 +1,24 @@
-let currentPage = 1;
-let totalCount  = 0;
-const PAGE_SIZE = 10;
+let currentPage     = 1;
+let totalCount      = 0;
+let currentOrdering = '-created_at';
+let currentPageSize = 10;
+
+const COLUMNS = [
+  { key: 'registered', label: 'Registered',    fields: ['created_at'] },
+  { key: 'name',       label: 'Name / Email',  fields: ['name', 'photo', 'email'] },
+  { key: 'gender',     label: 'Gender',        fields: ['gender'] },
+  { key: 'dob',        label: 'Date of Birth', fields: ['birth_date'] },
+  { key: 'contact',    label: 'Contact',       fields: ['phone', 'mobile'] },
+  { key: 'location',   label: 'Location',      fields: ['state', 'city'] },
+  { key: 'hobbies',    label: 'Hobbies',       fields: ['hobbies'] },
+];
+
+const visibleCols = Object.fromEntries(COLUMNS.map(c => [c.key, true]));
 
 async function loadFilterStates() {
   const sel = document.getElementById('filterState');
   try {
-    const res = await fetch('/api/states/');
+    const res  = await fetch('/api/states/');
     const data = await res.json();
     data.forEach(s => {
       const opt = document.createElement('option');
@@ -24,7 +37,12 @@ function buildQuery(page) {
   if (name)   params.set('name', name);
   if (state)  params.set('state', state);
   if (gender) params.set('gender', gender);
+  params.set('ordering', currentOrdering);
   params.set('page', page);
+  params.set('page_size', currentPageSize);
+  const fields = ['id'];
+  COLUMNS.forEach(c => { if (visibleCols[c.key]) fields.push(...c.fields); });
+  params.set('fields', fields.join(','));
   return params.toString();
 }
 
@@ -72,7 +90,33 @@ async function fetchUsers(page = 1) {
   }
 }
 
+function sortBy(field) {
+  if (currentOrdering === field)            currentOrdering = '-' + field;
+  else if (currentOrdering === '-' + field) currentOrdering = '-created_at';
+  else                                      currentOrdering = field;
+  fetchUsers(1);
+}
+
+function resetOrdering() {
+  currentOrdering = '-created_at';
+  fetchUsers(1);
+}
+
+function sortIcon(field) {
+  if (currentOrdering === field)       return '<span class="sort-active">↑</span>';
+  if (currentOrdering === '-' + field) return '<span class="sort-active">↓</span>';
+  return '<span class="sort-neutral">↕</span>';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 function renderTable(users) {
+  const vis = visibleCols;
+
   const rows = users.map(u => {
     const avatar = u.photo
       ? `<img class="avatar" src="${u.photo}" alt="${esc(u.name)}" />`
@@ -83,45 +127,63 @@ function renderTable(users) {
       : `<span class="badge badge-f">Female</span>`;
 
     const hobbies = Array.isArray(u.hobbies) && u.hobbies.length
-      ? `<div class="hobbies-list">${u.hobbies.map(h => `<span class="hobby-tag">${esc(h)}</span>`).join('')}</div>`
-      : `<span style="color:#bbb">—</span>`;
+      ? `<div class="hobbies-list">${u.hobbies.map(h => `<span class="hobby-tag">${esc(h.name)}</span>`).join('')}</div>`
+      : `<span class="muted">—</span>`;
 
-    const dob = u.birth_date || '—';
+    const location = u.city
+      ? `${esc(u.city)}, ${esc(u.state)}`
+      : (u.state ? esc(u.state) : '<span class="muted">—</span>');
+
+    let contact;
+    if (u.phone && u.mobile) {
+      contact = `<span class="contact-line">${esc(u.phone)}</span><span class="contact-line contact-sub">${esc(u.mobile)}</span>`;
+    } else {
+      contact = u.phone ? esc(u.phone) : (u.mobile ? esc(u.mobile) : '<span class="muted">—</span>');
+    }
 
     return `
       <tr>
-        <td>
+        <td></td>
+        ${vis.registered ? `<td class="date-cell">${formatDate(u.created_at)}</td>` : ''}
+        ${vis.name ? `<td>
           <div class="avatar-cell">
             ${avatar}
-            <span class="user-name">${esc(u.name)}</span>
+            <div class="name-email">
+              <span class="user-name">${esc(u.name)}</span>
+              ${u.email ? `<span class="user-email">${esc(u.email)}</span>` : ''}
+            </div>
           </div>
-        </td>
-        <td>${genderBadge}</td>
-        <td>${dob}</td>
-        <td>${esc(u.email || '—')}</td>
-        <td>${esc(u.phone || u.mobile || '—')}</td>
-        <td>${hobbies}</td>
+        </td>` : ''}
+        ${vis.gender ? `<td>${genderBadge}</td>` : ''}
+        ${vis.dob ? `<td>${esc(u.birth_date || '—')}</td>` : ''}
+        ${vis.contact ? `<td>${contact}</td>` : ''}
+        ${vis.location ? `<td class="location-cell">${location}</td>` : ''}
+        ${vis.hobbies ? `<td>${hobbies}</td>` : ''}
       </tr>`;
   }).join('');
 
   return `
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Gender</th>
-          <th>DOB</th>
-          <th>Email</th>
-          <th>Contact</th>
-          <th>Hobbies</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="th-reset"><button class="sort-reset-btn" onclick="resetOrdering()" title="Reset sort order">↺</button></th>
+            ${vis.registered ? `<th class="sortable" onclick="sortBy('created_at')">Registered ${sortIcon('created_at')}</th>` : ''}
+            ${vis.name ? `<th class="sortable" onclick="sortBy('name')">Name / Email ${sortIcon('name')}</th>` : ''}
+            ${vis.gender ? `<th class="sortable" onclick="sortBy('gender')">Gender ${sortIcon('gender')}</th>` : ''}
+            ${vis.dob ? `<th class="sortable" onclick="sortBy('birth_date')">DOB ${sortIcon('birth_date')}</th>` : ''}
+            ${vis.contact ? `<th>Contact</th>` : ''}
+            ${vis.location ? `<th class="sortable" onclick="sortBy('state')">Location ${sortIcon('state')}</th>` : ''}
+            ${vis.hobbies ? `<th>Hobbies</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderPagination(total, current) {
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(total / currentPageSize);
   if (totalPages <= 1) return;
 
   const pag = document.getElementById('pagination');
@@ -186,12 +248,47 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+function setPageSize(val) {
+  currentPageSize = parseInt(val, 10);
+  fetchUsers(1);
+}
+
+function toggleCol(key, checked) {
+  visibleCols[key] = checked;
+  fetchUsers(currentPage);
+}
+
+function toggleColPanel() {
+  document.getElementById('colPanel').classList.toggle('open');
+}
+
+function initColPanel() {
+  const panel = document.getElementById('colPanel');
+  panel.innerHTML = COLUMNS.map(c => `
+    <label class="col-check-item">
+      <input type="checkbox" checked onchange="toggleCol('${c.key}', this.checked)" />
+      ${c.label}
+    </label>
+  `).join('');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.col-toggle-wrap')) {
+    document.getElementById('colPanel').classList.remove('open');
+  }
+});
+
 function applyFilters() { fetchUsers(1); }
 
 function clearFilters() {
-  document.getElementById('filterName').value   = '';
-  document.getElementById('filterState').value  = '';
-  document.getElementById('filterGender').value = '';
+  document.getElementById('filterName').value     = '';
+  document.getElementById('filterState').value    = '';
+  document.getElementById('filterGender').value   = '';
+  document.getElementById('filterPageSize').value = '10';
+  currentOrdering = '-created_at';
+  currentPageSize = 10;
+  COLUMNS.forEach(c => visibleCols[c.key] = true);
+  document.querySelectorAll('#colPanel input[type=checkbox]').forEach(cb => cb.checked = true);
   fetchUsers(1);
 }
 
@@ -200,4 +297,5 @@ document.getElementById('filterName').addEventListener('keydown', e => {
 });
 
 loadFilterStates();
+initColPanel();
 fetchUsers(1);
