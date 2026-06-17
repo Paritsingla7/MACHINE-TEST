@@ -223,6 +223,13 @@ function renderPagination(total, current) {
   info.className = 'page-info';
   info.textContent = `Page ${current} of ${totalPages}`;
   pag.appendChild(info);
+
+  const goWrap = document.createElement('span');
+  goWrap.className = 'page-goto';
+  goWrap.innerHTML = `<span class="page-goto-label">Go to</span>
+    <input type="number" class="page-goto-input" min="1" max="${totalPages}" placeholder="${current}"
+      onkeydown="if(event.key==='Enter'){gotoPage(this.value,${totalPages})}" />`;
+  pag.appendChild(goWrap);
 }
 
 function makePageBtn(num, current) {
@@ -253,6 +260,62 @@ function setPageSize(val) {
   fetchUsers(1);
 }
 
+function openCustomPageSize() {
+  const sel = document.getElementById('filterPageSize');
+  const inp = document.getElementById('customPageSize');
+  sel.style.display = 'none';
+  inp.style.display = '';
+  inp.value = currentPageSize;
+  inp.focus();
+  inp.select();
+}
+
+function applyCustomPageSizeValue(val) {
+  const sel = document.getElementById('filterPageSize');
+  const prev = sel.querySelector('[data-custom]');
+  if (prev) prev.remove();
+  let found = false;
+  for (const opt of sel.options) {
+    if (parseInt(opt.value, 10) === val) { found = true; break; }
+  }
+  if (!found) {
+    const opt = new Option(String(val), String(val));
+    opt.dataset.custom = '1';
+    let inserted = false;
+    for (const opt2 of Array.from(sel.options)) {
+      if (parseInt(opt2.value, 10) > val) { sel.insertBefore(opt, opt2); inserted = true; break; }
+    }
+    if (!inserted) sel.appendChild(opt);
+  }
+  sel.value = String(val);
+}
+
+function closeCustomPageSize() {
+  const sel = document.getElementById('filterPageSize');
+  const inp = document.getElementById('customPageSize');
+  const val = parseInt(inp.value, 10);
+  if (!isNaN(val) && val >= 1 && val <= 100) {
+    currentPageSize = val;
+    applyCustomPageSizeValue(val);
+    fetchUsers(1);
+  }
+  inp.style.display = 'none';
+  sel.style.display = '';
+}
+
+function handleCustomPageSize(e) {
+  if (e.key === 'Enter')  { e.target.blur(); }
+  if (e.key === 'Escape') {
+    document.getElementById('customPageSize').style.display = 'none';
+    document.getElementById('filterPageSize').style.display = '';
+  }
+}
+
+function gotoPage(val, max) {
+  const p = parseInt(val, 10);
+  if (!isNaN(p) && p >= 1 && p <= max) fetchUsers(p);
+}
+
 function toggleCol(key, checked) {
   visibleCols[key] = checked;
   fetchUsers(currentPage);
@@ -281,10 +344,13 @@ document.addEventListener('click', e => {
 function applyFilters() { fetchUsers(1); }
 
 function clearFilters() {
-  document.getElementById('filterName').value     = '';
-  document.getElementById('filterState').value    = '';
-  document.getElementById('filterGender').value   = '';
-  document.getElementById('filterPageSize').value = '10';
+  document.getElementById('filterName').value   = '';
+  document.getElementById('filterState').value  = '';
+  document.getElementById('filterGender').value = '';
+  const sel = document.getElementById('filterPageSize');
+  const customOpt = sel.querySelector('[data-custom]');
+  if (customOpt) customOpt.remove();
+  sel.value = '10';
   currentOrdering = '-created_at';
   currentPageSize = 10;
   COLUMNS.forEach(c => visibleCols[c.key] = true);

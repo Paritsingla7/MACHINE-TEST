@@ -155,7 +155,7 @@ class CitiesListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         cities = Cities.objects.filter(state_id=state_id)
-        city_data = [{"id": city.id, "name": city.name} for city in cities]
+        city_data = [{"id": city.id, "name": city.name} for city in cities] # type: ignore
         return Response(city_data, status=status.HTTP_200_OK)
 
 

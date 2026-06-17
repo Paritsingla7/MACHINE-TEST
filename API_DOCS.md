@@ -167,7 +167,10 @@ Returns a paginated list of user profiles. Supports filtering.
 | `name` | string | No | Case-insensitive partial match on name |
 | `state` | integer | No | Filter by state ID |
 | `gender` | string | No | `M` or `F` |
-| `page` | integer | No | Page number. Default: `1`. Page size: `10` |
+| `ordering` | string | No | Field to sort by. Prefix with `-` for descending. Valid values: `name`, `gender`, `birth_date`, `email`, `mobile`, `phone`, `state`, `city`, `created_at`. Default: `-created_at`. E.g. `?ordering=state,-name` |
+| `page` | integer | No | Page number. Default: `1` |
+| `page_size` | integer | No | Results per page. Default: `10`. Max: `100` |
+| `fields` | string | No | Comma-separated list of fields to include in each result (sparse fieldset). E.g. `?fields=id,name,state,created_at` |
 
 **Response `200 OK`:**
 ```json
