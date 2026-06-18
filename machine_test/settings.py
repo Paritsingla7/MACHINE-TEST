@@ -45,19 +45,21 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'users',
-    'multiselectfield',
     'rest_framework',
     'django_filters',
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'corsheaders',
     'frontend',
+    'rest_framework_simplejwt',
 ]
 REST_FRAMEWORK = {
     'DATE_INPUT_FORMATS': ['%d/%m/%Y'],
     'DATE_FORMAT': '%d/%m/%Y',
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
 }
 
 SPECTACULAR_SETTINGS = {

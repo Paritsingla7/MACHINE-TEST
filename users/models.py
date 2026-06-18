@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 # Create your models here.
@@ -19,6 +20,8 @@ class Cities(models.Model):
         return self.name
 
 class UserProfile(models.Model):
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)  # add this line
     name = models.CharField(max_length=25, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     class genderChoices(models.TextChoices):
