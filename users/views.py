@@ -195,3 +195,16 @@ class UserMeView(APIView):
         serializer = UserProfileSerializer(profile, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+from rest_framework_simplejwt.views import TokenObtainPairView as _TokenObtainPairView
+
+class LoginView(_TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            from django.contrib.auth.models import User
+            from rest_framework_simplejwt.tokens import AccessToken
+            token = AccessToken(response.data['access'])
+            user = User.objects.get(id=token['user_id'])
+            response.data['is_admin'] = user.is_superuser
+        return response
+
