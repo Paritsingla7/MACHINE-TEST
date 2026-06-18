@@ -4,7 +4,8 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from datetime import date
 from django.db.models import Q
-
+import random
+from django.contrib.auth.models import User
 class StateSerializer(serializers.ModelSerializer):
     class Meta:
         model = States
@@ -18,7 +19,7 @@ class HobbySerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     
     name = serializers.CharField()
-
+    password = serializers.CharField(write_only=True, min_length=8)
     # READ: returns name strings
     state = serializers.StringRelatedField(read_only=True)
     city = serializers.StringRelatedField(read_only=True)
@@ -40,16 +41,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = UserProfile
-        fields = ['id', 'name', 'mobile', 'phone', 'photo', 'gender',
+        fields = ['id', 'name', 'password', 'mobile', 'phone', 'photo', 'gender',
                   'state', 'city', 'hobbies',           # read
                   'state_id', 'city_id', 'hobbies_ids', # write
                   'email', 'birth_date', 'created_at']
 
     def create(self, validated_data):
         hobbies = validated_data.pop('hobbies', [])
-        instance = UserProfile.objects.create(**validated_data)
-        instance.hobbies.set(hobbies)
-        return instance
+        password = validated_data.pop('password')
+    
+        base = validated_data.get('name', '').lower().replace(' ', '')
+        username = f"{base}{random.randint(1000, 9999)}"
+        while User.objects.filter(username=username).exists():
+            username = f"{base}{random.randint(1000, 9999)}"
+    
+        user = User.objects.create_user(username=username, password=password)
+    
+        validated_data['email'] = validated_data.get('email') or None
+        profile = UserProfile.objects.create(user=user, **validated_data)
+        profile.hobbies.set(hobbies)
+        return profile
 
     def to_representation(self, instance):
         request = self.context.get('request')

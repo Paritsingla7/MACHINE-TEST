@@ -1,5 +1,5 @@
 from django.db.models.functions import Lower
-from rest_framework import status
+from rest_framework import request, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
@@ -9,6 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from .serializers import UserProfileSerializer, StateSerializer
 from .models import UserProfile, Cities, States
 from .filters import UserProfileFilter
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class OrderingFilter(_BaseOrderingFilter):
@@ -51,8 +52,16 @@ class UserProfileView(APIView):
         serializer = UserProfileSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+        profile = serializer.save()
+        refresh = RefreshToken.for_user(profile.user)
+    
+        return Response({
+            "user": serializer.data,
+            "username": profile.user.username,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }, status=status.HTTP_201_CREATED)
 
 
 class UserListView(APIView):
