@@ -10,6 +10,8 @@ from .serializers import UserProfileSerializer, StateSerializer
 from .models import UserProfile, Cities, States
 from .filters import UserProfileFilter
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class OrderingFilter(_BaseOrderingFilter):
@@ -65,6 +67,7 @@ class UserProfileView(APIView):
 
 
 class UserListView(APIView):
+    permission_classes = [IsAdminUser]
     ordering_fields = ['name', 'gender', 'birth_date', 'email', 'mobile', 'phone', 'state', 'city', 'created_at']
     ordering = ['-created_at']
 
@@ -79,7 +82,7 @@ class UserListView(APIView):
         parameters=[
             OpenApiParameter(
                 'name', OpenApiTypes.STR,
-                description='Filter by name (case-insensitive partial match). E.g. ?name=raj',
+                description='Filter by name (case-insensitive partial match). E.g. ?na me=raj',
             ),
             OpenApiParameter(
                 'state', OpenApiTypes.INT,
@@ -178,3 +181,17 @@ class StateListView(APIView):
         states = States.objects.all()
         serializer = StateSerializer(states, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class UserMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=['Users'],
+        summary='Get your own profile',
+        responses={200: UserProfileSerializer},
+    )
+    def get(self, request):
+        profile = request.user.userprofile
+        serializer = UserProfileSerializer(profile, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
