@@ -1,3 +1,35 @@
+// ── Eye toggle ────────────────────────────────────────────────────────────────
+
+function toggleEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.querySelector('.eye-open').style.display   = showing ? '' : 'none';
+  btn.querySelector('.eye-closed').style.display = showing ? 'none' : '';
+}
+
+// ── Hobbies loading ───────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadHobbies() {
+  const grid = document.getElementById('hobbiesGrid');
+  try {
+    const res  = await fetch('/api/hobbies/');
+    const data = await res.json();
+    if (!data.length) { grid.innerHTML = '<span style="color:#9a7e65;font-size:0.88rem;">No hobbies available.</span>'; return; }
+    grid.innerHTML = data.map(h => `
+      <div class="hobby-option">
+        <input type="checkbox" id="hobby-${h.id}" name="hobbies_ids" value="${h.id}" />
+        <label for="hobby-${h.id}">${escHtml(h.name)}</label>
+      </div>`).join('');
+  } catch {
+    grid.innerHTML = '<span style="color:#9a7e65;font-size:0.88rem;">Failed to load hobbies.</span>';
+  }
+}
+
 // ── States / Cities loading ───────────────────────────────────────────────────
 
 async function loadStates() {
@@ -102,6 +134,25 @@ function clearFieldError(field) {
 function validateField(field) {
   const el = document.getElementById(field);
 
+  if (field === 'username') {
+    const val = el.value.trim();
+    if (!val) return setFieldError('username', 'Username is required.') || 'err';
+    if (!/^[a-zA-Z0-9]+$/.test(val)) return setFieldError('username', 'Username can only contain letters and numbers.') || 'err';
+    const letters = (val.match(/[a-zA-Z]/g) || []).length;
+    const digits  = (val.match(/[0-9]/g) || []).length;
+    if (letters < 4 || digits < 4) return setFieldError('username', 'Must have at least 4 letters and 4 numbers.') || 'err';
+    clearFieldError('username');
+    return null;
+  }
+
+  if (field === 'password') {
+    const val = el.value;
+    if (!val) return setFieldError('password', 'Password is required.') || 'err';
+    if (val.length < 8) return setFieldError('password', 'Password must be at least 8 characters.') || 'err';
+    clearFieldError('password');
+    return null;
+  }
+
   if (field === 'name') {
     const val = el.value.trim();
     if (!val) return setFieldError('name', 'Full name is required.') || 'err';
@@ -178,7 +229,7 @@ function refreshTnc() {
 
 // ── Blur listeners for instant feedback ──────────────────────────────────────
 
-['name', 'email', 'phone', 'mobile'].forEach(id => {
+['name', 'username', 'password', 'email', 'phone', 'mobile'].forEach(id => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener('blur', () => { validateField(id); refreshTnc(); });
@@ -236,6 +287,23 @@ function runClientValidation() {
   const name = document.getElementById('name').value.trim();
   if (!name) errors.name = 'Full name is required.';
   else if (name.length > 25) errors.name = 'Name cannot exceed 25 characters.';
+
+  // Username
+  const username = document.getElementById('username').value.trim();
+  if (!username) {
+    errors.username = 'Username is required.';
+  } else if (!/^[a-zA-Z0-9]+$/.test(username)) {
+    errors.username = 'Username can only contain letters and numbers.';
+  } else {
+    const letters = (username.match(/[a-zA-Z]/g) || []).length;
+    const digits  = (username.match(/[0-9]/g) || []).length;
+    if (letters < 4 || digits < 4) errors.username = 'Must have at least 4 letters and 4 numbers.';
+  }
+
+  // Password
+  const password = document.getElementById('password').value;
+  if (!password) errors.password = 'Password is required.';
+  else if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
 
   // Birth date
   const rawDate = document.getElementById('birth_date').value.trim();
@@ -296,7 +364,8 @@ function showAllErrors(errs) {
   errorList.innerHTML = '';
 
   const labels = {
-    name: 'Full Name', birth_date: 'Date of Birth', gender: 'Gender',
+    name: 'Full Name', username: 'Username', password: 'Password',
+    birth_date: 'Date of Birth', gender: 'Gender',
     email: 'Email', phone: 'Phone', mobile: 'Mobile', contact: 'Contact',
     state: 'State', city: 'City', photo: 'Photo', non_field_errors: 'Form',
   };
@@ -391,7 +460,9 @@ document.getElementById('registerForm').addEventListener('submit', async functio
   const form = document.getElementById('registerForm');
   const fd = new FormData();
 
-  fd.append('name', document.getElementById('name').value.trim());
+  fd.append('name',     document.getElementById('name').value.trim());
+  fd.append('username', document.getElementById('username').value.trim());
+  fd.append('password', document.getElementById('password').value);
 
   const rawDate = document.getElementById('birth_date').value.trim();
   if (rawDate) fd.append('birth_date', rawDate);
@@ -421,7 +492,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     const res = await fetch('/api/register/', { method: 'POST', body: fd });
 
     if (res.ok) {
-      window.location.href = '/users/';
+      const data = await res.json();
+      AUTH.store({
+        access:   data.access,
+        refresh:  data.refresh,
+        username: data.username,
+        is_admin: false,
+      });
+      window.location.href = '/profile/';
       return;
     }
 
@@ -437,4 +515,5 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 });
 
 loadStates();
+loadHobbies();
 refreshTnc();

@@ -1,3 +1,6 @@
+// Admin-only page — redirect to login if unauthenticated, to /profile/ if not admin.
+if (!AUTH.requireAdmin()) { /* already redirecting */ }
+
 let currentPage     = 1;
 let totalCount      = 0;
 let currentOrdering = '-created_at';
@@ -58,7 +61,14 @@ async function fetchUsers(page = 1) {
   document.getElementById('resultsSummary').textContent = '';
 
   try {
-    const res  = await fetch(`/api/users/?${buildQuery(page)}`);
+    const res = await AUTH.fetch(`/api/users/?${buildQuery(page)}`);
+    if (!res) return;
+
+    if (res.status === 403) {
+      window.location.href = '/profile/';
+      return;
+    }
+
     const data = await res.json();
 
     totalCount = data.count || 0;

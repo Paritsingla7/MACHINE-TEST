@@ -54,6 +54,7 @@ label .req { color: #c0392b; margin-left: 2px; }
 
 input[type="text"],
 input[type="email"],
+input[type="password"],
 select {
   width: 100%;
   padding: 10px 14px;
@@ -84,8 +85,40 @@ input:focus, select:focus {
   background: #fff;
 }
 
+/* Password + eye toggle wrapper */
+.input-with-eye {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.input-with-eye input {
+  flex: 1;
+  padding-right: 42px;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a7e65;
+  border-radius: 0 8px 8px 0;
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.eye-btn:hover { color: #c4733a; }
+
 /* Subtle red hue on error fields */
-input.error, select.error {
+input.error, select.error, input[type="password"].error {
   border-color: #c0392b;
   background: rgba(192, 57, 43, 0.04);
   box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.08);

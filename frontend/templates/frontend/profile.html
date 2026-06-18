@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <link rel="stylesheet" href="{% static 'frontend/css/base.css' %}?v={% now 'U' %}" />
+  <link rel="stylesheet" href="{% static 'frontend/css/profile.css' %}?v={% now 'U' %}" />
+</head>
+<body>
+
+  <header>
+    <h1>My Profile</h1>
+    <button class="btn-logout" onclick="AUTH.logout()">Logout</button>
+  </header>
+
+  <div class="profile-card">
+    <div id="profileContent">
+      <div class="loading-state">
+        <div class="big-spinner"></div>
+        <p>Loading profile…</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'frontend/js/auth.js' %}?v={% now 'U' %}"></script>
+  <script src="{% static 'frontend/js/profile.js' %}?v={% now 'U' %}"></script>
+</body>
+</html>

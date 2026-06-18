@@ -10,13 +10,21 @@
   <meta http-equiv="Expires" content="0" />
   <link rel="stylesheet" href="{% static 'frontend/css/base.css' %}?v={% now 'U' %}" />
   <link rel="stylesheet" href="{% static 'frontend/css/users.css' %}?v={% now 'U' %}" />
+  <style>
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-logout { font-size: 0.875rem; font-weight: 500; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #f5b7b1; background: #fff0ee; color: #c0392b; cursor: pointer; transition: background 0.2s; }
+    .btn-logout:hover { background: #fde8e4; }
+  </style>
 </head>
 <body>
 
   <div class="page-wrapper">
     <header>
       <h1>Users</h1>
-      <a href="/register/">&plus; Register User</a>
+      <div class="header-actions">
+        <a href="/register/">&plus; Register User</a>
+        <button class="btn-logout" onclick="AUTH.logout()">Logout</button>
+      </div>
     </header>
 
     <div class="filter-card">
@@ -82,6 +90,7 @@
     </div>
   </div>
 
+  <script src="{% static 'frontend/js/auth.js' %}?v={% now 'U' %}"></script>
   <script src="{% static 'frontend/js/users.js' %}?v={% now 'U' %}"></script>
 </body>
 </html>

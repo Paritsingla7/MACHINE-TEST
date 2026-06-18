@@ -4,7 +4,7 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from datetime import date
 from django.db.models import Q
-import random
+from django.db import transaction
 from django.contrib.auth.models import User
 class StateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,6 +19,7 @@ class HobbySerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     
     name = serializers.CharField()
+    username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True, min_length=8)
     # READ: returns name strings
     state = serializers.StringRelatedField(read_only=True)
@@ -33,30 +34,27 @@ class UserProfileSerializer(serializers.ModelSerializer):
         queryset=Cities.objects.all(), source='city', 
         write_only=True, required=False, allow_null=True
     )
-    hobbies_ids = serializers.SlugRelatedField(
+    hobbies_ids = serializers.PrimaryKeyRelatedField(
         queryset=Hobbies.objects.all(), source='hobbies',
-        slug_field='name', many=True, write_only=True, required=False
+        many=True, write_only=True, required=False
     )
 
     class Meta:
         
         model = UserProfile
-        fields = ['id', 'name', 'password', 'mobile', 'phone', 'photo', 'gender',
+        fields = ['id', 'name', 'username', 'password', 'mobile', 'phone', 'photo', 'gender',
                   'state', 'city', 'hobbies',           # read
                   'state_id', 'city_id', 'hobbies_ids', # write
                   'email', 'birth_date', 'created_at']
 
+    @transaction.atomic
     def create(self, validated_data):
         hobbies = validated_data.pop('hobbies', [])
         password = validated_data.pop('password')
-    
-        base = validated_data.get('name', '').lower().replace(' ', '')
-        username = f"{base}{random.randint(1000, 9999)}"
-        while User.objects.filter(username=username).exists():
-            username = f"{base}{random.randint(1000, 9999)}"
-    
+        username = validated_data.pop('username')
+
         user = User.objects.create_user(username=username, password=password)
-    
+
         validated_data['email'] = validated_data.get('email') or None
         profile = UserProfile.objects.create(user=user, **validated_data)
         profile.hobbies.set(hobbies)
@@ -74,6 +72,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
         
         return representation
     
+    def validate_username(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Username cannot be blank.')
+        if not value.isalnum():
+            raise serializers.ValidationError('Username can only contain letters and numbers.')
+        letters = sum(1 for c in value if c.isalpha())
+        digits  = sum(1 for c in value if c.isdigit())
+        if letters < 4 or digits < 4:
+            raise serializers.ValidationError('Username must contain at least 4 letters and 4 numbers.')
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
+
     def validate_name(self, value):
         return value.strip()
 
@@ -126,8 +138,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 error['name'] = 'Name cannot exceed 25 characters.'
         
         #photo validation
-        if photo and photo.name.split('.')[-1].lower() not in ['jpg', 'jpeg', 'png']:
-            error['photo'] = 'Photo must be in JPG or PNG format.'
+        if photo:
+            if photo.name.split('.')[-1].lower() not in ['jpg', 'jpeg', 'png']:
+                error['photo'] = 'Photo must be in JPG or PNG format.'
+            elif photo.size > 5 * 1024 * 1024:
+                error['photo'] = 'Photo must not exceed 5 MB.'
         
         #gender validation
         if gender not in ['M', 'F']:
@@ -153,8 +168,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
                     error['email'] = 'This email address is already registered.'
 
         #birth_date validation
-        if birth_date and birth_date > date.today():
-            error['birth_date'] = 'Birth date cannot be in the future.'
+        if birth_date:
+            today = date.today()
+            if birth_date > today:
+                error['birth_date'] = 'Birth date cannot be in the future.'
+            else:
+                age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+                if age > 90:
+                    error['birth_date'] = 'Age cannot be more than 90 years.'
 
         if error:
             raise serializers.ValidationError(error)

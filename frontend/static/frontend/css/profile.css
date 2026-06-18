@@ -1,0 +1,257 @@
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header { width: 100%; max-width: 860px; }
+
+.profile-card {
+  background: #fffcf7;
+  width: 100%;
+  max-width: 860px;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(100, 60, 20, 0.10);
+  padding: 36px 44px;
+  border: 1px solid #ecdece;
+}
+
+/* ── Hero: photo left, account info right ── */
+.profile-layout {
+  display: flex;
+  gap: 36px;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  padding-bottom: 28px;
+  border-bottom: 1.5px solid #ecdece;
+}
+
+.profile-photo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.avatar-xl {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #c4733a;
+}
+
+.avatar-xl-placeholder {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: #f5ede0;
+  border: 3px solid #ddd0bf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  color: #c4733a;
+}
+
+.profile-since {
+  font-size: 0.78rem;
+  color: #9a7e65;
+  text-align: center;
+}
+
+/* ── Right column: name, username, account fields ── */
+.profile-info-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2e2416;
+  margin: 0 0 2px;
+}
+
+.profile-username {
+  font-size: 0.92rem;
+  color: #c4733a;
+  font-weight: 500;
+  margin-bottom: 16px;
+  display: block;
+}
+
+/* Account fields (email, password) */
+.profile-acc-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid #ecdece;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.paf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f0e8da;
+}
+
+.paf-row:last-child { border-bottom: none; }
+
+.paf-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9a7e65;
+  width: 84px;
+  flex-shrink: 0;
+}
+
+.paf-value {
+  font-size: 0.92rem;
+  color: #2e2416;
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+/* Password row */
+.paf-pwd-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.pwd-display {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwd-mask {
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  color: #2e2416;
+  line-height: 1;
+  user-select: none;
+}
+
+.eye-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  color: #9a7e65;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.eye-btn:hover { color: #c4733a; }
+
+.btn-change-pwd {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1.5px solid #c4733a;
+  background: transparent;
+  color: #c4733a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-change-pwd:hover { background: rgba(196,115,58,0.08); }
+
+/* ── Details grid below hero ── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0e8da;
+}
+
+.profile-field:nth-last-child(-n+2):not(.profile-field--wide) { border-bottom: none; }
+.profile-field--wide { grid-column: 1 / -1; border-bottom: none; }
+
+.pf-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9a7e65;
+}
+
+.pf-value {
+  font-size: 0.92rem;
+  color: #2e2416;
+}
+
+/* Shared chips/badges */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-m { background: #dbeafe; color: #1e40af; }
+.badge-f { background: #fce7f3; color: #9d174d; }
+.hobbies-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.hobby-tag { background: #f5ede0; color: #7d6a55; padding: 2px 9px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; border: 1px solid #ecdece; }
+.muted { color: #bbb; }
+.loading-state { text-align: center; padding: 60px 20px; color: #9a7e65; }
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state p { color: #9a7e65; font-size: 0.95rem; }
+
+/* Logout button */
+.btn-logout {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1.5px solid #f5b7b1;
+  background: #fff0ee;
+  color: #c0392b;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-logout:hover { background: #fde8e4; }
+
+/* Spinner */
+.big-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #ecdece;
+  border-top-color: #c4733a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 680px) {
+  .profile-card { padding: 24px 20px; }
+  .profile-layout { flex-direction: column; align-items: center; gap: 20px; }
+  .profile-info-col { width: 100%; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-field:last-child { border-bottom: none; }
+  .profile-field--wide { border-bottom: none; }
+  .paf-label { width: 72px; }
+}

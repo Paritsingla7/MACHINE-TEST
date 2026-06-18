@@ -1,12 +1,12 @@
 # Machine Test — Django REST API + Web Frontend
 
-A full-stack Django project with a REST API for user profile management and a web frontend for browsing and registering users. Includes JWT-based authentication.
+A full-stack Django project with a REST API for user profile management and a vanilla JS web frontend. Includes JWT-based authentication, role-based routing, and an admin-only user list view.
 
 ---
 
 ## Project Structure
 
-```
+```text
 machine_test/
 ├── machine_test/          # Django project settings & root URLs
 ├── users/                 # User profile app
@@ -15,12 +15,26 @@ machine_test/
 │   ├── views.py           # API views
 │   └── filters.py         # django-filter filtersets
 ├── frontend/              # Web frontend Django app
+│   ├── views.py           # Template-serving views
+│   ├── urls.py            # Frontend URL routes
 │   ├── templates/frontend/
-│   │   ├── users.html     # User list page
-│   │   └── register.html  # Registration form
+│   │   ├── login.html     # Login page
+│   │   ├── register.html  # Registration form
+│   │   ├── profile.html   # My profile page
+│   │   └── users.html     # User list page (admin only)
 │   └── static/frontend/
-│       ├── js/            # users.js, register.js
-│       └── css/           # base.css, users.css, register.css
+│       ├── js/
+│       │   ├── auth.js      # Shared auth utilities (AUTH object, token storage, auto-refresh)
+│       │   ├── login.js     # Login form logic
+│       │   ├── register.js  # Registration form logic
+│       │   ├── profile.js   # Profile page logic
+│       │   └── users.js     # User list page logic
+│       └── css/
+│           ├── base.css     # Buttons, spinners, shared utilities
+│           ├── login.css    # Login page layout overrides
+│           ├── register.css # Registration form styles (also used by login)
+│           ├── profile.css  # Profile page styles
+│           └── users.css    # User list table and filters
 ├── media/                 # Uploaded profile photos  [gitignored]
 ├── staticfiles/           # Collected static files   [gitignored]
 ├── db.sqlite3             # SQLite database          [gitignored]
@@ -50,7 +64,7 @@ pip install -r requirements.txt
 
 ### 3. Create `.env` inside `machine_test/` (next to `settings.py`)
 
-```
+```env
 SECRET_KEY=your-secret-key-here
 DEBUG=True
 ```
@@ -81,56 +95,58 @@ python manage.py runserver 0.0.0.0:8000
 
 ---
 
+## Web Pages
+
+| Page | URL | Access |
+| --- | --- | --- |
+| Root | `/` | Redirects to `/login/` |
+| Login | `/login/` | Public — redirects away if already logged in |
+| Register | `/register/` | Public |
+| My Profile | `/profile/` | Authenticated users only — redirects to `/login/` if unauthenticated |
+| User List | `/users/` | Admin only — redirects to `/login/` or `/profile/` if not admin |
+
+---
+
 ## Features
 
 ### Web Frontend
 
-- **Register** a new user profile at `/register/`
-- **Filter** users by name (partial match), state, and gender
-- **Sort** any column by clicking its header — click again to reverse, third click resets to default (newest first)
-- **Column visibility** — toggle columns on/off via the Columns button; also trims the API response via sparse fieldsets automatically
-- **Page size** — choose 5 / 10 / 25 / 50 / 100 per page, or double-click the dropdown to type a custom number (1–100)
-- **Page jump** — type any page number directly into the Go to input in the pagination bar
+- **Login** — authenticate with username + password; admin users are routed to `/users/`, regular users to `/profile/`
+- **Register** — create an account with a user-chosen username (≥4 letters + ≥4 digits), password, and full profile details; redirects to `/profile/` on success
+- **My Profile** — view your own profile including name, photo, gender, DOB, location, and hobbies; includes a Change Password button (placeholder)
+- **User List** (admin only) — filterable by name, state, and gender; sortable by any column; configurable page size; sparse fieldset to trim API response
+- **Password visibility toggle** — eye icon on all password inputs (login, register, profile)
+- **Auto token refresh** — expired access tokens are refreshed silently using the refresh token; user is only redirected to login if the refresh also fails
+- **Auth guards** — every page checks token presence and admin status on load; unauthorized access redirects instantly
 
 ### API
 
-- **JWT Authentication** — register and login return `access` + `refresh` tokens; use Bearer token in the `Authorization` header for protected endpoints
-- **Register** — creates a `UserProfile` and a linked Django `User`; returns tokens immediately so the client is logged in right after signup
-- **Login** — exchange `username` + `password` for a new token pair
+- **JWT Authentication** — register and login return `access` + `refresh` tokens; send `Authorization: Bearer <access>` for protected endpoints
+- **Register** — creates a `UserProfile` and linked Django `User` atomically; returns tokens immediately so the client is logged in right after signup
+- **Login** — exchange `username` + `password` for a token pair; response includes `is_admin` flag for client-side routing
 - **Token refresh** — get a new access token using a valid refresh token
-- **Me** — get the profile of the currently authenticated user
-- **User list** — paginated, filterable, sortable list (admin only)
-- **Filtering** — by name (case-insensitive partial), state ID, gender
-- **Sorting** — any field, case-insensitive for text fields, multi-field ordering
-- **Pagination** — configurable page size up to 100
-- **Sparse fieldsets** — request only the fields you need via `?fields=`
-
----
-
-## Web Pages
-
-| Page | URL |
-| --- | --- |
-| User list (filter, sort, paginate) | `http://localhost:8000/` |
-| Register a new user | `http://localhost:8000/register/` |
+- **Me / Profile** — get the full profile of the authenticated user
+- **User list** — paginated (10/page default, max 100), filterable, sortable, with sparse fieldsets
+- **Hobbies list** — fetch all available hobbies with their IDs for use in the registration form
 
 ---
 
 ## API Endpoints
 
-| Method | URL | Auth required | Description |
+| Method | URL | Auth | Description |
 | --- | --- | --- | --- |
 | GET | `/api/states/` | No | List all states |
 | GET | `/api/cities/?state_id=<id>` | No | List cities for a state |
-| POST | `/api/register/` | No | Register a user — returns JWT tokens |
-| POST | `/api/login/` | No | Login — returns JWT tokens |
+| GET | `/api/hobbies/` | No | List all hobbies |
+| POST | `/api/register/` | No | Register — returns JWT tokens |
+| POST | `/api/login/` | No | Login — returns JWT tokens + `is_admin` |
 | POST | `/api/token/refresh/` | No | Refresh access token |
-| GET | `/api/me/` | Bearer token | Get own profile |
+| GET | `/api/profile/` | Bearer token | Get own profile |
 | GET | `/api/users/` | Admin only | List users — filterable, sortable, paginated |
 
 See [API_DOCS.md](API_DOCS.md) for full request/response details.
 
-Interactive docs once the server is running:
+Interactive docs (server must be running):
 
 | Tool | URL |
 | --- | --- |
@@ -141,44 +157,34 @@ Interactive docs once the server is running:
 
 ## Authentication Flow
 
-1. **Register** — `POST /api/register/` — save the returned `username`, `access`, and `refresh` tokens
-2. **Make authenticated requests** — add `Authorization: Bearer <access_token>` header
-3. **Refresh** — when the access token expires, call `POST /api/token/refresh/` with the refresh token to get a new one
-4. **Login again** — `POST /api/login/` with `username` + `password`
-
-> The `username` is auto-generated at registration (e.g. `paritsingla4821`). It is returned in the register response — store it on the client side for future logins.
+1. **Register** — `POST /api/register/` with a chosen `username` (alphanumeric, ≥4 letters + ≥4 digits), `password`, and profile data → save the returned `access`, `refresh`, and `username` tokens
+2. **Login** — `POST /api/login/` with `username` + `password` → save `access`, `refresh`, `username`, `is_admin`; route to `/users/` if admin, `/profile/` otherwise
+3. **Make authenticated requests** — add `Authorization: Bearer <access_token>` to the `Authorization` header
+4. **Silent refresh** — when a request returns `401`, automatically retry `POST /api/token/refresh/` with the stored refresh token and replay the original request with the new access token
+5. **Logout** — clear all stored tokens from localStorage; redirect to `/login/`
 
 ---
 
-## Known Issues & Security Gaps
+## Known Issues
 
-These are real problems in the current state of the project. They are documented here so they are not forgotten and are fixed before any production or public use.
-
-### Critical
-
-| # | Issue | Where | Impact |
-| --- | --- | --- | --- |
-| 1 | **Web registration is broken** | `register.html`, `register.js` | The serializer now requires a `password` field (min 8 chars) but the HTML form and JS do not send one. Every registration attempt from the browser returns `{"errors": {"password": ["This field is required."]}}`. |
-| 2 | **User list page is broken for everyone** | `views.py` — `UserListView` | `permission_classes = [IsAdminUser]` means only Django superusers with a valid JWT can access `/api/users/`. The web frontend sends no token so the list page returns 401 for all visitors. |
-| 3 | **Login requires username users don't know** | `urls.py` — `/api/login/` | `TokenObtainPairView` expects `username` + `password`. Usernames are random strings generated at registration (e.g. `paritsingla4821`). If the client didn't save the `username` from the register response, the user cannot log in. |
+Issues that existed at project start and are still open. None of these affect core functionality in a local development context but must be resolved before any public or production deployment.
 
 ### Medium
 
 | # | Issue | Where | Impact |
 | --- | --- | --- | --- |
-| 4 | **CORS middleware in wrong position** | `settings.py` — `MIDDLEWARE` | `CorsMiddleware` must be **first** in the list. It is currently **last**, so it runs after responses are already generated and adds no CORS headers. Android app cross-origin requests will be blocked by the browser. |
-| 5 | **No CORS origins configured** | `settings.py` | Neither `CORS_ALLOWED_ORIGINS` nor `CORS_ALLOW_ALL_ORIGINS` is set anywhere. Even after fixing position, CORS headers will not be sent until one of these is added. |
-| 6 | **No logout / token blacklisting** | — | There is no logout endpoint and no token blacklist. Once issued, an access token is valid until it expires. A user whose token is stolen cannot revoke it. SimpleJWT's `BLACKLIST_APP` is not enabled. |
-| 7 | **No rate limiting on auth endpoints** | `/api/login/`, `/api/register/` | No throttling is configured. These endpoints are open to brute-force and credential-stuffing attacks. |
+| 1 | **CORS middleware in wrong position** | `settings.py` — `MIDDLEWARE` | `CorsMiddleware` must be **first** in the list. It is currently last, so CORS headers are never added. Cross-origin requests from mobile apps or separate frontends will be blocked. |
+| 2 | **No CORS origins configured** | `settings.py` | Neither `CORS_ALLOWED_ORIGINS` nor `CORS_ALLOW_ALL_ORIGINS` is set. Even after fixing position, no CORS headers will be sent until one of these is configured. |
+| 3 | **No server-side token blacklist** | — | There is no logout endpoint and no token blacklist. Once issued, an access token is valid until it naturally expires. A stolen access token cannot be revoked. Client-side logout (clearing localStorage) is implemented but does not invalidate tokens on the server. |
+| 4 | **No rate limiting on auth endpoints** | `/api/login/`, `/api/register/` | No throttling is configured. Both endpoints are open to brute-force and credential-stuffing attacks. |
 
 ### Low / Pre-production
 
 | # | Issue | Where | Impact |
 | --- | --- | --- | --- |
-| 8 | **`ALLOWED_HOSTS = ['*']`** | `settings.py` | Fine for local dev. Must be locked down to actual domain(s) before going public. |
-| 9 | **`DEBUG=True` in `.env` example** | README, `.env` | If `DEBUG=True` in production Django serves full tracebacks to anyone who hits a 500 error, leaking internal code paths and settings. |
-| 10 | **No HTTPS enforcement** | `settings.py` | No `SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`, or cookie security flags. Tokens travel in plaintext over HTTP. |
-| 11 | **Duplicate import in views.py** | `views.py` lines 12 & 14 | `from rest_framework_simplejwt.tokens import RefreshToken` is imported twice. Cosmetic but messy. |
+| 5 | **`ALLOWED_HOSTS = ['*']`** | `settings.py` | Fine for local dev. Must be restricted to the actual domain(s) before going public. |
+| 6 | **No HTTPS enforcement** | `settings.py` | No `SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`, or secure cookie flags. JWT tokens travel in plaintext over HTTP. |
+| 7 | **`DEBUG=True` in `.env` example** | README | In production, `DEBUG=True` causes Django to serve full tracebacks to anyone who triggers a 500 error, leaking internal code and settings. |
 
 ---
 
@@ -187,9 +193,9 @@ These are real problems in the current state of the project. They are documented
 ### Backend
 
 - Python / Django 6
-- Django REST Framework
+- Django REST Framework 3
 - djangorestframework-simplejwt (JWT auth)
-- drf-spectacular (OpenAPI, Swagger UI, ReDoc)
+- drf-spectacular (OpenAPI schema, Swagger UI, ReDoc)
 - django-filter
 - django-cors-headers
 - python-dotenv
@@ -197,4 +203,4 @@ These are real problems in the current state of the project. They are documented
 ### Frontend
 
 - Plain HTML / CSS / JavaScript (no framework)
-- Flatpickr (date picker)
+- Flatpickr (date picker calendar)

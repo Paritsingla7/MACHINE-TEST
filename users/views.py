@@ -6,12 +6,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import OrderingFilter as _BaseOrderingFilter
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from .serializers import UserProfileSerializer, StateSerializer
-from .models import UserProfile, Cities, States
+from .serializers import UserProfileSerializer, StateSerializer, HobbySerializer
+from .models import UserProfile, Cities, States, Hobbies
 from .filters import UserProfileFilter
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class OrderingFilter(_BaseOrderingFilter):
@@ -161,12 +160,14 @@ class CitiesListView(APIView):
                 {"error": "state_id query parameter is required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if not state_id.isdigit():
+        try:
+            state_id_int = int(state_id)
+        except ValueError:
             return Response(
                 {"error": "state_id must be a valid integer."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        cities = Cities.objects.filter(state_id=state_id)
+        cities = Cities.objects.filter(state_id=state_id_int)
         city_data = [{"id": city.id, "name": city.name} for city in cities] # type: ignore
         return Response(city_data, status=status.HTTP_200_OK)
 
@@ -182,16 +183,32 @@ class StateListView(APIView):
         serializer = StateSerializer(states, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class HobbiesListView(APIView):
+    @extend_schema(
+        tags=['Locations'],
+        summary='List all hobbies',
+        responses={200: HobbySerializer(many=True)},
+    )
+    def get(self, request):
+        hobbies = Hobbies.objects.all()
+        serializer = HobbySerializer(hobbies, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class UserMeView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=['Users'],
         summary='Get your own profile',
+        description='Returns the full profile of the currently authenticated user.',
         responses={200: UserProfileSerializer},
     )
     def get(self, request):
-        profile = request.user.userprofile
+        try:
+            profile = request.user.userprofile
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = UserProfileSerializer(profile, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -206,5 +223,6 @@ class LoginView(_TokenObtainPairView):
             token = AccessToken(response.data['access'])
             user = User.objects.get(id=token['user_id'])
             response.data['is_admin'] = user.is_superuser
+            response.data['username'] = user.username
         return response
 
