@@ -396,7 +396,8 @@ document.getElementById('registerForm').addEventListener('submit', async functio
   const rawDate = document.getElementById('birth_date').value.trim();
   if (rawDate) fd.append('birth_date', rawDate);
 
-  fd.append('email',  form.email.value.trim());
+  const emailVal = form.email.value.trim();
+  if (emailVal) fd.append('email', emailVal);
   fd.append('phone',  form.phone.value.trim());
   fd.append('mobile', form.mobile.value.trim());
 

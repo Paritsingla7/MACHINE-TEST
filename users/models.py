@@ -27,7 +27,7 @@ class UserProfile(models.Model):
 
     gender = models.CharField(max_length=1, choices=genderChoices.choices)
     birth_date = models.DateField(blank=False)
-    email = models.EmailField(max_length=254, blank=True)
+    email = models.EmailField(max_length=254, blank=True, null=True, unique=True)
     phone = models.CharField(max_length=10, blank=True)
     mobile = models.CharField(max_length=10, blank=True)
     state = models.ForeignKey('States', on_delete=models.CASCADE, blank=False, null=False)

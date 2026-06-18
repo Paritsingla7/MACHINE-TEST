@@ -64,9 +64,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return representation
     
     def validate_name(self, value):
-        return value
+        return value.strip()
 
-    def validate(self, data ):
+    def validate_email(self, value):
+        # treat empty string as no email provided
+        return None if value == '' else value
+
+    def validate(self, data):
         error = {}
         
         name = data.get('name', '').strip()
@@ -111,7 +115,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 error['name'] = 'Name cannot exceed 25 characters.'
         
         #photo validation
-        if photo and photo.name.split('.')[-1].lower()  not in ['jpg', 'png']:
+        if photo and photo.name.split('.')[-1].lower() not in ['jpg', 'jpeg', 'png']:
             error['photo'] = 'Photo must be in JPG or PNG format.'
         
         #gender validation
@@ -124,12 +128,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if city and state and city.state != state:
             error['city'] = 'City must belong to the selected state.'
 
-        #email format validation
+        #email format validation + uniqueness
         if email:
             try:
                 validate_email(email)
             except ValidationError:
                 error['email'] = 'Invalid email format.'
+            else:
+                existing = UserProfile.objects
+                if self.instance:
+                    existing = existing.exclude(pk=self.instance.pk)
+                if existing.filter(email=email).exists():
+                    error['email'] = 'This email address is already registered.'
 
         #birth_date validation
         if birth_date and birth_date > date.today():
