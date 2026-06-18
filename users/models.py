@@ -1,6 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+import uuid
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def is_expired(self):
+        from django.utils import timezone
+        return (timezone.now() - self.created_at).seconds > 900  # 15 minutes
 
 # Create your models here.
 class States(models.Model):

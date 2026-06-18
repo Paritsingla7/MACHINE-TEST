@@ -11,7 +11,10 @@ from .models import UserProfile, Cities, States, Hobbies
 from .filters import UserProfileFilter
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import PasswordResetToken
+from django.contrib.auth.models import User
 
 class OrderingFilter(_BaseOrderingFilter):
     _remap = {'state': 'state__name', 'city': 'city__name'}
@@ -225,4 +228,93 @@ class LoginView(_TokenObtainPairView):
             response.data['is_admin'] = user.is_superuser
             response.data['username'] = user.username
         return response
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not user.check_password(old_password):
+            return Response({"error": "Current password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_password or len(new_password) < 8:
+            return Response({"error": "New password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+        if old_password == new_password:
+            return Response({"error": "New password cannot be the same as current password."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordView(APIView):
+
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            profile = UserProfile.objects.get(email=email)
+        except UserProfile.DoesNotExist:
+            # Vague on purpose — don't reveal if email exists
+            return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+
+        user = profile.user
+        if user is None:
+            return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+
+        # Invalidate any existing unused tokens for this user
+        PasswordResetToken.objects.filter(user=user, is_used=False).delete()
+
+        reset_token = PasswordResetToken.objects.create(user=user)
+
+        reset_link = f"http://localhost:8000/api/forgot-password/confirm/?token={reset_token.token}"
+
+        send_mail(
+            subject="Reset your password",
+            message=f"Click the link to reset your password. It expires in 15 minutes.\n\n{reset_link}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+        )
+
+        return Response({"message": "If an account with that email exists, a reset link has been sent."}, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordConfirmView(APIView):
+
+    def post(self, request):
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not token:
+            return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not new_password or len(new_password) < 8:
+            return Response({"error": "Password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            reset_token = PasswordResetToken.objects.get(token=token, is_used=False)
+        except PasswordResetToken.DoesNotExist:
+            return Response({"error": "Invalid or already used token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if reset_token.is_expired():
+            reset_token.delete()
+            return Response({"error": "Token has expired. Please request a new reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = reset_token.user
+        user.set_password(new_password)
+        user.save()
+
+        reset_token.is_used = True
+        reset_token.save()
+
+        return Response({"message": "Password reset successfully. You can now log in."}, status=status.HTTP_200_OK)
 
