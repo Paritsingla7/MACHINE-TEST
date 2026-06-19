@@ -1,6 +1,6 @@
 # Machine Test — Django REST API + Web Frontend
 
-A full-stack Django project with a REST API for user profile management and a vanilla JS web frontend. Includes JWT-based authentication, role-based routing, and an admin-only user list view.
+A full-stack Django project with a REST API for user profile management and a vanilla JS web frontend. Includes JWT-based authentication, role-based routing, password change, and forgot-password via email.
 
 ---
 
@@ -10,7 +10,7 @@ A full-stack Django project with a REST API for user profile management and a va
 machine_test/
 ├── machine_test/          # Django project settings & root URLs
 ├── users/                 # User profile app
-│   ├── models.py          # UserProfile, States, Cities, Hobbies
+│   ├── models.py          # UserProfile, States, Cities, Hobbies, PasswordResetToken
 │   ├── serializers.py     # Read/write serializer with validation
 │   ├── views.py           # API views
 │   └── filters.py         # django-filter filtersets
@@ -18,22 +18,26 @@ machine_test/
 │   ├── views.py           # Template-serving views
 │   ├── urls.py            # Frontend URL routes
 │   ├── templates/frontend/
-│   │   ├── login.html     # Login page
-│   │   ├── register.html  # Registration form
-│   │   ├── profile.html   # My profile page
-│   │   └── users.html     # User list page (admin only)
+│   │   ├── login.html            # Login page
+│   │   ├── register.html         # Registration form
+│   │   ├── profile.html          # My profile page
+│   │   ├── forgot_password.html  # Forgot password — email entry
+│   │   ├── reset_password.html   # Reset password — new password form (token from URL)
+│   │   └── users.html            # User list page (admin only)
 │   └── static/frontend/
 │       ├── js/
-│       │   ├── auth.js      # Shared auth utilities (AUTH object, token storage, auto-refresh)
-│       │   ├── login.js     # Login form logic
-│       │   ├── register.js  # Registration form logic
-│       │   ├── profile.js   # Profile page logic
-│       │   └── users.js     # User list page logic
+│       │   ├── auth.js             # Shared auth utilities (AUTH object, token storage, auto-refresh)
+│       │   ├── login.js            # Login form logic
+│       │   ├── register.js         # Registration form logic
+│       │   ├── profile.js          # Profile page logic + change password modal
+│       │   ├── forgot_password.js  # Forgot password form logic
+│       │   ├── reset_password.js   # Reset password form logic
+│       │   └── users.js            # User list page logic
 │       └── css/
 │           ├── base.css     # Buttons, spinners, shared utilities
 │           ├── login.css    # Login page layout overrides
-│           ├── register.css # Registration form styles (also used by login)
-│           ├── profile.css  # Profile page styles
+│           ├── register.css # Registration form styles (shared by login/forgot/reset pages)
+│           ├── profile.css  # Profile page styles + change password modal
 │           └── users.css    # User list table and filters
 ├── media/                 # Uploaded profile photos  [gitignored]
 ├── staticfiles/           # Collected static files   [gitignored]
@@ -103,6 +107,8 @@ python manage.py runserver 0.0.0.0:8000
 | Login | `/login/` | Public — redirects away if already logged in |
 | Register | `/register/` | Public |
 | My Profile | `/profile/` | Authenticated users only — redirects to `/login/` if unauthenticated |
+| Forgot Password | `/forgot-password/` | Public |
+| Reset Password | `/reset-password/?token=<token>` | Public — token arrives via email link |
 | User List | `/users/` | Admin only — redirects to `/login/` or `/profile/` if not admin |
 
 ---
@@ -111,13 +117,16 @@ python manage.py runserver 0.0.0.0:8000
 
 ### Web Frontend
 
-- **Login** — authenticate with username + password; admin users are routed to `/users/`, regular users to `/profile/`
+- **Login** — authenticate with username + password; admin users are routed to `/users/`, regular users to `/profile/`; shows success message when arriving from a password reset
 - **Register** — create an account with a user-chosen username (≥4 letters + ≥4 digits), password, and full profile details; redirects to `/profile/` on success
-- **My Profile** — view your own profile including name, photo, gender, DOB, location, and hobbies; includes a Change Password button (placeholder)
+- **My Profile** — view your own profile including name, photo, gender, DOB, location, and hobbies; includes a working **Change Password** modal
+- **Change Password** — modal on the profile page; requires current password; calls `POST /api/change-password/`; shows a success toast on completion
+- **Forgot Password** — email entry page at `/forgot-password/`; calls `POST /api/forgot-password/`; shows confirmation after submission
+- **Reset Password** — form at `/reset-password/?token=<token>` (link sent via email); validates the token and sets a new password; redirects to login with a success message
 - **User List** (admin only) — filterable by name, state, and gender; sortable by any column; configurable page size; sparse fieldset to trim API response
-- **Password visibility toggle** — eye icon on all password inputs (login, register, profile)
+- **Password visibility toggle** — eye icon on all password inputs (login, register, Change Password modal, reset password)
 - **Auto token refresh** — expired access tokens are refreshed silently using the refresh token; user is only redirected to login if the refresh also fails
-- **Auth guards** — every page checks token presence and admin status on load; unauthorized access redirects instantly
+- **Auth guards** — every protected page checks token presence and admin status on load; unauthorized access redirects instantly
 
 ### API
 
@@ -125,7 +134,10 @@ python manage.py runserver 0.0.0.0:8000
 - **Register** — creates a `UserProfile` and linked Django `User` atomically; returns tokens immediately so the client is logged in right after signup
 - **Login** — exchange `username` + `password` for a token pair; response includes `is_admin` flag for client-side routing
 - **Token refresh** — get a new access token using a valid refresh token
-- **Me / Profile** — get the full profile of the authenticated user
+- **Profile** — get the full profile of the authenticated user
+- **Change password** — authenticated endpoint; verifies current password before updating
+- **Forgot password** — sends a single-use 15-minute reset token to the user's registered email
+- **Reset password** — consumes the token and sets the new password
 - **User list** — paginated (10/page default, max 100), filterable, sortable, with sparse fieldsets
 - **Hobbies list** — fetch all available hobbies with their IDs for use in the registration form
 
@@ -142,6 +154,9 @@ python manage.py runserver 0.0.0.0:8000
 | POST | `/api/login/` | No | Login — returns JWT tokens + `is_admin` |
 | POST | `/api/token/refresh/` | No | Refresh access token |
 | GET | `/api/profile/` | Bearer token | Get own profile |
+| POST | `/api/change-password/` | Bearer token | Change password (requires current password) |
+| POST | `/api/forgot-password/` | No | Send password reset email |
+| POST | `/api/forgot-password/confirm/` | No | Set new password using reset token |
 | GET | `/api/users/` | Admin only | List users — filterable, sortable, paginated |
 
 See [API_DOCS.md](API_DOCS.md) for full request/response details.
@@ -162,6 +177,9 @@ Interactive docs (server must be running):
 3. **Make authenticated requests** — add `Authorization: Bearer <access_token>` to the `Authorization` header
 4. **Silent refresh** — when a request returns `401`, automatically retry `POST /api/token/refresh/` with the stored refresh token and replay the original request with the new access token
 5. **Logout** — clear all stored tokens from localStorage; redirect to `/login/`
+6. **Change password** — `POST /api/change-password/` with `old_password`, `new_password`, `confirm_password`; the active session remains valid after a successful change
+7. **Forgot password** — `POST /api/forgot-password/` with `email`; a reset link is emailed to `/reset-password/?token=<token>`; the token expires in 15 minutes
+8. **Reset password** — `POST /api/forgot-password/confirm/` with `token`, `new_password`, `confirm_password`; on success the token is consumed and the user is redirected to `/login/`
 
 ---
 
@@ -175,8 +193,8 @@ Issues that existed at project start and are still open. None of these affect co
 | --- | --- | --- | --- |
 | 1 | **CORS middleware in wrong position** | `settings.py` — `MIDDLEWARE` | `CorsMiddleware` must be **first** in the list. It is currently last, so CORS headers are never added. Cross-origin requests from mobile apps or separate frontends will be blocked. |
 | 2 | **No CORS origins configured** | `settings.py` | Neither `CORS_ALLOWED_ORIGINS` nor `CORS_ALLOW_ALL_ORIGINS` is set. Even after fixing position, no CORS headers will be sent until one of these is configured. |
-| 3 | **No server-side token blacklist** | — | There is no logout endpoint and no token blacklist. Once issued, an access token is valid until it naturally expires. A stolen access token cannot be revoked. Client-side logout (clearing localStorage) is implemented but does not invalidate tokens on the server. |
-| 4 | **No rate limiting on auth endpoints** | `/api/login/`, `/api/register/` | No throttling is configured. Both endpoints are open to brute-force and credential-stuffing attacks. |
+| 3 | **No server-side token blacklist** | — | There is no token blacklist. Once issued, an access token is valid until it naturally expires. A stolen access token cannot be revoked. Client-side logout (clearing localStorage) is implemented but does not invalidate tokens on the server. |
+| 4 | **No rate limiting on auth endpoints** | `/api/login/`, `/api/register/`, `/api/forgot-password/` | No throttling is configured. Auth endpoints are open to brute-force and credential-stuffing attacks. |
 
 ### Low / Pre-production
 

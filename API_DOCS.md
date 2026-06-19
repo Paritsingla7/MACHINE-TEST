@@ -24,6 +24,9 @@ Interactive docs once the server is running:
 | POST | `/api/login/` | No | Login — returns JWT tokens + admin flag |
 | POST | `/api/token/refresh/` | No | Exchange a refresh token for a new access token |
 | GET | `/api/profile/` | Bearer token | Get the profile of the authenticated user |
+| POST | `/api/change-password/` | Bearer token | Change password — requires current password |
+| POST | `/api/forgot-password/` | No | Send a password reset link to the registered email |
+| POST | `/api/forgot-password/confirm/` | No | Set a new password using the reset token |
 | GET | `/api/users/` | Admin only | List user profiles — filterable, sortable, paginated |
 
 ---
@@ -438,6 +441,134 @@ GET /api/users/?name=raj&state=1&ordering=name&page=2&page_size=25&fields=id,nam
 {
   "detail": "You do not have permission to perform this action."
 }
+```
+
+---
+
+## 9. Change Password
+
+`POST /api/change-password/`
+
+Changes the password of the currently authenticated user. Requires the correct current password.
+
+**Authentication:** Required — `Authorization: Bearer <access_token>`
+
+**Content-Type:** `application/json`
+
+### Change Password — Request Body
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `old_password` | string | Yes | The user's current password |
+| `new_password` | string | Yes | New password. Min 8 characters. Cannot match `old_password` |
+| `confirm_password` | string | Yes | Must match `new_password` |
+
+### Change Password — Response `200 OK`
+
+```json
+{ "message": "Password changed successfully." }
+```
+
+### Change Password — Response `400 Bad Request`
+
+Any of the following, depending on which validation fails:
+
+```json
+{ "error": "Current password is incorrect." }
+```
+
+```json
+{ "error": "New password must be at least 8 characters." }
+```
+
+```json
+{ "error": "Passwords do not match." }
+```
+
+```json
+{ "error": "New password cannot be the same as current password." }
+```
+
+### Change Password — Response `401 Unauthorized`
+
+```json
+{ "detail": "Authentication credentials were not provided." }
+```
+
+---
+
+## 10. Forgot Password
+
+`POST /api/forgot-password/`
+
+Sends a password reset link to the registered email address. The response is deliberately vague to avoid leaking whether an email exists in the system.
+
+**Content-Type:** `application/json`
+
+### Forgot Password — Request Body
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `email` | string | Yes | The email address to send the reset link to |
+
+### Forgot Password — Response `200 OK`
+
+```json
+{ "message": "If an account with that email exists, a reset link has been sent." }
+```
+
+> This response is returned regardless of whether the email is registered. The reset link points to `/reset-password/?token=<token>` and expires in 15 minutes. Any existing unused reset tokens for that user are invalidated when a new one is issued.
+
+### Forgot Password — Response `400 Bad Request`
+
+```json
+{ "error": "Email is required." }
+```
+
+---
+
+## 11. Reset Password (Confirm)
+
+`POST /api/forgot-password/confirm/`
+
+Validates a password reset token and sets a new password. The token is single-use and is marked as used after a successful reset.
+
+**Content-Type:** `application/json`
+
+### Reset Password — Request Body
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `token` | string | Yes | The reset token from the URL query parameter (`?token=`) |
+| `new_password` | string | Yes | New password. Min 8 characters |
+| `confirm_password` | string | Yes | Must match `new_password` |
+
+### Reset Password — Response `200 OK`
+
+```json
+{ "message": "Password reset successfully. You can now log in." }
+```
+
+### Reset Password — Response `400 Bad Request` — validation error
+
+```json
+{ "error": "Password must be at least 8 characters." }
+```
+
+```json
+{ "error": "Passwords do not match." }
+```
+
+### Reset Password — Response `400 Bad Request` — invalid or used token
+
+```json
+{ "error": "Invalid or already used token." }
+```
+
+### Reset Password — Response `400 Bad Request` — expired token
+
+```json
+{ "error": "Token has expired. Please request a new reset link." }
 ```
 
 ---

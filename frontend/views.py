@@ -19,3 +19,11 @@ def profile_view(request):
 
 def users_view(request):
     return render(request, 'frontend/users.html')
+
+
+def forgot_password_view(request):
+    return render(request, 'frontend/forgot_password.html')
+
+
+def reset_password_view(request):
+    return render(request, 'frontend/reset_password.html')

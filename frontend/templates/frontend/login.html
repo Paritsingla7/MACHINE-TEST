@@ -18,6 +18,7 @@
   <div class="card">
     <h2>Welcome back</h2>
 
+    <div class="success-box" id="successBox" style="display:none"></div>
     <div class="error-box" id="errorBox">
       <ul id="errorList"></ul>
     </div>
@@ -47,6 +48,7 @@
     </form>
 
     <p class="login-footer">Don't have an account? <a href="/register/">Register here</a></p>
+    <p class="login-footer"><a href="/forgot-password/">Forgot your password?</a></p>
   </div>
 
   <script src="{% static 'frontend/js/auth.js' %}?v={% now 'U' %}"></script>

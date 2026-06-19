@@ -1,16 +1,90 @@
 if (!AUTH.requireAuth()) { /* already redirecting */ }
 
-const EYE_OPEN = `<svg class="eye-open" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-const EYE_CLOSED = `<svg class="eye-closed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
-let _pwdVisible = false;
+function toggleEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.querySelector('.eye-open').style.display   = showing ? '' : 'none';
+  btn.querySelector('.eye-closed').style.display = showing ? 'none' : '';
+}
 
-function togglePwd(btn) {
-  _pwdVisible = !_pwdVisible;
-  const dots = document.getElementById('pwdMask');
-  dots.textContent = _pwdVisible ? '(not stored)' : '••••••••';
-  btn.querySelector('.eye-open').style.display   = _pwdVisible ? 'none' : '';
-  btn.querySelector('.eye-closed').style.display = _pwdVisible ? '' : 'none';
+function showToast(msg, type = 'success') {
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function openChangePwdModal() {
+  const modal = document.getElementById('changePwdModal');
+  document.getElementById('oldPwd').value     = '';
+  document.getElementById('newPwd').value     = '';
+  document.getElementById('confirmPwd').value = '';
+  document.getElementById('changePwdError').style.display = 'none';
+  ['oldPwd', 'newPwd', 'confirmPwd'].forEach(id => {
+    document.getElementById(id).type = 'password';
+  });
+  modal.querySelectorAll('.eye-open').forEach(el  => el.style.display = '');
+  modal.querySelectorAll('.eye-closed').forEach(el => el.style.display = 'none');
+  modal.classList.add('open');
+}
+
+function closePwdModal(e) {
+  if (!e || e.target === document.getElementById('changePwdModal')) {
+    document.getElementById('changePwdModal').classList.remove('open');
+  }
+}
+
+async function submitChangePwd() {
+  const oldPwd     = document.getElementById('oldPwd').value;
+  const newPwd     = document.getElementById('newPwd').value;
+  const confirmPwd = document.getElementById('confirmPwd').value;
+  const errEl      = document.getElementById('changePwdError');
+
+  errEl.style.display = 'none';
+
+  if (!oldPwd || !newPwd || !confirmPwd) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.style.display = '';
+    return;
+  }
+
+  const btn = document.getElementById('changePwdBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Updating…';
+
+  try {
+    const res = await AUTH.fetch('/api/change-password/', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ old_password: oldPwd, new_password: newPwd, confirm_password: confirmPwd }),
+    });
+    if (!res) return;
+
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('changePwdModal').classList.remove('open');
+      showToast('Password updated successfully.');
+    } else {
+      errEl.textContent = data.error || 'Something went wrong.';
+      errEl.style.display = '';
+    }
+  } catch {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+  }
 }
 
 async function loadProfile() {
@@ -83,17 +157,8 @@ function renderProfile(p) {
             <span class="paf-label">Email</span>
             <span class="paf-value">${p.email ? esc(p.email) : '<span class="muted">—</span>'}</span>
           </div>
-          <div class="paf-row">
-            <span class="paf-label">Password</span>
-            <div class="paf-pwd-wrap">
-              <span class="pwd-mask" id="pwdMask">••••••••</span>
-              <button type="button" class="eye-btn" onclick="togglePwd(this)" title="Passwords are not stored in the browser">
-                ${EYE_OPEN}${EYE_CLOSED}
-              </button>
-              <button type="button" class="btn-change-pwd">Change Password</button>
-            </div>
-          </div>
         </div>
+        <button type="button" class="btn-change-pwd" onclick="openChangePwdModal()">Change Password</button>
       </div>
 
     </div>

@@ -11,6 +11,13 @@ if (AUTH.getAccess()) {
   window.location.href = AUTH.isAdmin() ? '/users/' : '/profile/';
 }
 
+// Show success message if redirected after password reset
+if (new URLSearchParams(window.location.search).get('reset') === '1') {
+  const box = document.getElementById('successBox');
+  box.textContent = 'Password reset successfully. You can now log in.';
+  box.style.display = '';
+}
+
 document.getElementById('loginForm').addEventListener('submit', async function (e) {
   e.preventDefault();
   clearError();
