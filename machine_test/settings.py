@@ -33,6 +33,7 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['*',]
 
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
 
 # Email configuration
 
